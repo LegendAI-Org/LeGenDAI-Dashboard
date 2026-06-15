@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import styles from './LeadsTable.module.css';
 import { Search, Filter, MoreHorizontal, MessageCircle } from 'lucide-react';
@@ -154,7 +154,8 @@ export default function LeadsTable() {
             </thead>
             <tbody>
               {filteredLeads.map((lead) => (
-                <tr key={lead.id} className={styles.row} onClick={() => setSelectedLead(lead)} style={{ cursor: 'pointer' }}>
+                <React.Fragment key={lead.id}>
+                <tr className={styles.row} onClick={() => setSelectedLead(selectedLead?.id === lead.id ? null : lead)} style={{ cursor: 'pointer', backgroundColor: selectedLead?.id === lead.id ? 'rgba(255,255,255,0.05)' : '' }}>
                   <td>
                     <div className={styles.leadName}>{lead.name || 'ללא שם'}</div>
                     <div className={styles.leadEmail}>{lead.email}</div>
@@ -187,19 +188,23 @@ export default function LeadsTable() {
                     </button>
                   </td>
                 </tr>
+                {selectedLead?.id === lead.id && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: 0, borderBottom: '1px solid var(--glass-border)' }}>
+                      <LeadModal
+                        lead={selectedLead}
+                        onClose={() => setSelectedLead(null)}
+                        onUpdateStatus={(newStatus) => handleUpdateStatus(selectedLead.id, newStatus)}
+                      />
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
         )}
       </div>
-
-      {selectedLead && (
-        <LeadModal
-          lead={selectedLead}
-          onClose={() => setSelectedLead(null)}
-          onUpdateStatus={(newStatus) => handleUpdateStatus(selectedLead.id, newStatus)}
-        />
-      )}
     </div>
   );
 }

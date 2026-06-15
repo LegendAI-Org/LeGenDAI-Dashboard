@@ -1,25 +1,18 @@
 .overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
+  display: block;
+  width: 100%;
   animation: fadeIn 0.2s ease;
+  background: var(--bg-dark);
 }
 
 .modal {
   width: 100%;
-  max-width: 1000px;
-  max-height: 90vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 0;
+  border: none;
+  animation: fadeIn 0.3s ease;
 }
 
 @keyframes slideUp {
