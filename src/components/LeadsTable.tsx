@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import styles from './LeadsTable.module.css';
 import { Search, Filter, MoreHorizontal, MessageCircle } from 'lucide-react';
+import LeadModal from './LeadModal';
 
 type Lead = {
   id: string;
@@ -22,6 +23,7 @@ export default function LeadsTable() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   
   const supabase = createClient();
 
@@ -93,6 +95,9 @@ export default function LeadsTable() {
         
       if (!error) {
         fetchLeads();
+        if (selectedLead && selectedLead.id === leadId) {
+          setSelectedLead({ ...selectedLead, status: newStatus });
+        }
       }
     } catch (err) {
       console.error(err);
@@ -149,7 +154,7 @@ export default function LeadsTable() {
             </thead>
             <tbody>
               {filteredLeads.map((lead) => (
-                <tr key={lead.id} className={styles.row} onClick={() => window.open('/leads/' + lead.id, '_blank')} style={{ cursor: 'pointer' }}>
+                <tr key={lead.id} className={styles.row} onClick={() => setSelectedLead(lead)} style={{ cursor: 'pointer' }}>
                   <td>
                     <div className={styles.leadName}>{lead.name || 'ללא שם'}</div>
                     <div className={styles.leadEmail}>{lead.email}</div>
@@ -187,6 +192,14 @@ export default function LeadsTable() {
           </table>
         )}
       </div>
+
+      {selectedLead && (
+        <LeadModal
+          lead={selectedLead}
+          onClose={() => setSelectedLead(null)}
+          onUpdateStatus={(newStatus) => handleUpdateStatus(selectedLead.id, newStatus)}
+        />
+      )}
     </div>
   );
 }
