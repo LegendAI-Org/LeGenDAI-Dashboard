@@ -46,6 +46,10 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
       }
     }
 
+    if (!parsedData || typeof parsedData !== 'object') {
+      return <div className={styles.emptyData}>אין נתונים נוספים להצגה</div>;
+    }
+
     const entries = Object.entries(parsedData);
     if (entries.length === 0) return <div className={styles.emptyData}>אין נתונים נוספים להצגה</div>;
 
@@ -111,7 +115,11 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
               <h4 className={styles.cardTitle}>פרטי יצירת קשר</h4>
               <div className={styles.contactItem}>
                 <Phone size={16} />
-                <a href={`https://wa.me/${lead.phone}`} target="_blank" rel="noopener noreferrer" dir="ltr">{lead.phone}</a>
+                {lead.phone ? (
+                  <a href={`https://wa.me/${lead.phone}`} target="_blank" rel="noopener noreferrer" dir="ltr">{lead.phone}</a>
+                ) : (
+                  <span>אין מספר טלפון</span>
+                )}
               </div>
               {lead.email && (
                 <div className={styles.contactItem}>
