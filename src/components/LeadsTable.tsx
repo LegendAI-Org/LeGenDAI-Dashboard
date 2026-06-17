@@ -14,6 +14,7 @@ type Lead = {
   email: string | null;
   notes: string | null;
   source: string | null;
+  client_id: string;
   form_data: any;
   created_at: string;
 };
@@ -21,9 +22,11 @@ type Lead = {
 export default function LeadsTable() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   
   const supabase = createClient();
 
@@ -43,8 +46,19 @@ export default function LeadsTable() {
       )
       .subscribe();
 
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -57,22 +71,50 @@ export default function LeadsTable() {
         
       if (error) throw error;
       setLeads(data || []);
-    } catch (error) {
+      setErrorMsg('');
+    } catch (error: any) {
       console.error('Error fetching leads:', error);
+      setErrorMsg('Error loading leads: ' + error.message);
     } finally {
       setLoading(false);
     }
   }
 
+  const getDisplayName = (lead: Lead) => {
+    let name = lead.name;
+    if (!name || name === 'ללא שם') {
+      try {
+        const form = typeof lead.form_data === 'string' ? JSON.parse(lead.form_data) : lead.form_data;
+        const first = form?.['שם פרטי'] || '';
+        const last = form?.['שם משפחה'] || '';
+        const full = form?.['Full Name'] || form?.['שם מלא'] || '';
+        if (first || last) {
+          name = `${first} ${last}`.trim();
+        } else if (full) {
+          name = full;
+        }
+      } catch(e) {}
+    }
+    return name || 'ללא שם';
+  };
+
   const filteredLeads = leads.filter(lead => {
-    const matchesSearch = 
-      (lead.name?.toLowerCase() || '').includes(search.toLowerCase()) ||
-      (lead.phone || '').includes(search);
+    const s = search.toLowerCase();
+    const dName = getDisplayName(lead).toLowerCase();
+    const lName = (lead.name || '').toLowerCase();
+    const email = (lead.email || '').toLowerCase();
+    const phone = (lead.phone || '').toLowerCase();
+    
+    const matchesSearch = dName.includes(s) || lName.includes(s) || email.includes(s) || phone.includes(s);
     
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
     
     return matchesSearch && matchesStatus;
   });
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -106,12 +148,18 @@ export default function LeadsTable() {
 
   return (
     <div className={styles.container}>
+      <div className={styles.headerRow}>
+        <div className={styles.statsCounter}>
+          <span>סה״כ לידים:</span>
+          <strong>{filteredLeads.length}</strong>
+        </div>
+      </div>
       <div className={styles.controls}>
         <div className={styles.searchBox}>
           <Search size={18} className={styles.searchIcon} />
           <input 
             type="text" 
-            placeholder="חיפוש לפי שם או טלפון..." 
+            placeholder="חיפוש לפי שם, טלפון או מייל..." 
             className={`input-field ${styles.searchInput}`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -136,7 +184,9 @@ export default function LeadsTable() {
       </div>
 
       <div className={styles.tableWrapper}>
-        {loading ? (
+        {errorMsg ? (
+          <div className={styles.emptyState}>{errorMsg}</div>
+        ) : loading ? (
           <div className={styles.loadingState}>טוען נתונים...</div>
         ) : filteredLeads.length === 0 ? (
           <div className={styles.emptyState}>לא נמצאו לידים תואמים.</div>
@@ -157,7 +207,7 @@ export default function LeadsTable() {
                 <React.Fragment key={lead.id}>
                 <tr className={styles.row} onClick={() => setSelectedLead(selectedLead?.id === lead.id ? null : lead)} style={{ cursor: 'pointer', backgroundColor: selectedLead?.id === lead.id ? 'rgba(255,255,255,0.05)' : '' }}>
                   <td>
-                    <div className={styles.leadName}>{lead.name || 'ללא שם'}</div>
+                    <div className={styles.leadName}>{getDisplayName(lead)}</div>
                     <div className={styles.leadEmail}>{lead.email}</div>
                   </td>
                   <td>
@@ -205,6 +255,14 @@ export default function LeadsTable() {
           </table>
         )}
       </div>
+
+      <button 
+        className={`${styles.scrollTopBtn} ${showScrollTop ? styles.showScrollBtn : ''}`}
+        onClick={scrollToTop}
+        title="חזרה למעלה"
+      >
+        ↑
+      </button>
     </div>
   );
 }
