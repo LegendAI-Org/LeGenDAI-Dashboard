@@ -4,9 +4,20 @@ import { createClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
 
 // Setup Supabase admin client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder';
-const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+// Env vars are set as NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_SERVICE_KEY in Vercel
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceRoleKey = 
+  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_KEY ||   // Our actual env var name
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||           // Alternative naming
+  process.env.NEXT_PUBLIC_SUPABASE_KEY ||            // Fallback to anon key
+  '';
+
+if (!supabaseUrl || !supabaseServiceRoleKey) {
+  console.error('[WhatsApp API] Missing Supabase credentials! URL:', supabaseUrl ? 'set' : 'MISSING', 'Key:', supabaseServiceRoleKey ? 'set' : 'MISSING');
+}
+
+const supabase = createClient(supabaseUrl || '', supabaseServiceRoleKey || '');
+
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
