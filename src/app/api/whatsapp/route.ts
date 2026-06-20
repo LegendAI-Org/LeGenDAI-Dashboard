@@ -27,17 +27,41 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
   }
 
-  // Clean phone number to ensure it matches format (no + sign, just numbers)
+  // Clean phone number - remove all non-digits
   const cleanPhone = phone.replace(/\D/g, '');
+  
+  // Build possible phone formats to search:
+  // Supabase stores numbers as 972XXXXXXXXX (international format)
+  // Dashboard may send 0XXXXXXXXX (local Israeli format)
+  const phoneVariants: string[] = [cleanPhone];
+  if (cleanPhone.startsWith('0')) {
+    // Convert 0507... -> 972507...
+    phoneVariants.push('972' + cleanPhone.slice(1));
+  } else if (!cleanPhone.startsWith('972') && cleanPhone.length <= 10) {
+    // Add 972 prefix directly
+    phoneVariants.push('972' + cleanPhone);
+  }
 
   try {
-    const { data, error } = await supabase
-      .from('whatsapp_messages')
-      .select('*')
-      .eq('lead_phone', cleanPhone)
-      .order('created_at', { ascending: true }); // Get messages in chronological order
-
-    if (error) throw error;
+    // Try each phone format until we find messages
+    let data: any[] = [];
+    let lastError: any = null;
+    
+    for (const phoneVariant of phoneVariants) {
+      const { data: rows, error } = await supabase
+        .from('whatsapp_messages')
+        .select('*')
+        .eq('lead_phone', phoneVariant)
+        .order('created_at', { ascending: true });
+      
+      if (error) { lastError = error; continue; }
+      if (rows && rows.length > 0) {
+        data = rows;
+        break; // Found messages - stop searching
+      }
+    }
+    
+    if (lastError && data.length === 0) throw lastError;
 
     // Format the response to match the frontend expectations
     // The frontend LeadModal currently expects an array of messages where:
