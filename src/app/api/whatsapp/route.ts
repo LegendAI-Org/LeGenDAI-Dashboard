@@ -43,30 +43,20 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Try each phone format until we find messages
-    let data: any[] = [];
-    let lastError: any = null;
+    // Query all phone formats at once to fetch both inbound and outbound messages
+    const { data, error } = await supabase
+      .from('whatsapp_messages')
+      .select('*')
+      .in('lead_phone', phoneVariants)
+      .order('created_at', { ascending: true });
     
-    for (const phoneVariant of phoneVariants) {
-      const { data: rows, error } = await supabase
-        .from('whatsapp_messages')
-        .select('*')
-        .eq('lead_phone', phoneVariant)
-        .order('created_at', { ascending: true });
-      
-      if (error) { lastError = error; continue; }
-      if (rows && rows.length > 0) {
-        data = rows;
-        break; // Found messages - stop searching
-      }
-    }
-    
-    if (lastError && data.length === 0) throw lastError;
+    if (error) throw error;
+    const rows = data || [];
 
     // Format the response to match the frontend expectations
     // The frontend LeadModal currently expects an array of messages where:
     // { textMessage: string, senderId: string, timestamp: number }
-    const formattedMessages = data.map(msg => {
+    const formattedMessages = rows.map(msg => {
       // Support both content formats: {body: "..."} and {text: {body: "..."}}
       const bodyText = msg.content?.body 
         || msg.content?.text?.body 

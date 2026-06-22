@@ -311,22 +311,40 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
                 <div className={styles.emptyData}>אין היסטוריה</div>
               ) : (
                 <div className={styles.chatBox} ref={chatBoxRef}>
-                  {messages.map((msg, idx) => {
-                    // Skip non-text messages (e.g. reactions, images without caption)
-                    const msgText = msg.textMessage || msg.extendedTextMessage?.text;
-                    if (!msgText) return null;
-                    const isAgent = msg.direction === 'outbound' || msg.senderId === 'me' || String(msg.senderId).startsWith(process.env.NEXT_PUBLIC_GREENAPI_ID_INSTANCE || 'none');
-                    return (
-                      <div key={idx} className={`${styles.chatMessage} ${isAgent ? styles.agent : styles.user}`}>
-                        <div className={styles.chatText} style={{ whiteSpace: 'pre-wrap' }}>
-                          {msgText}
-                        </div>
-                        <span className={styles.chatTime}>
-                          {new Date(msg.timestamp * 1000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    );
-                  })}
+                  {(() => {
+                    let lastDateStr = '';
+                    return messages.map((msg, idx) => {
+                      // Skip non-text messages
+                      const msgText = msg.textMessage || msg.extendedTextMessage?.text;
+                      if (!msgText) return null;
+                      
+                      const msgDate = new Date(msg.timestamp * 1000);
+                      // Format date for separator
+                      const currentDateStr = msgDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' });
+                      const showSeparator = currentDateStr !== lastDateStr;
+                      lastDateStr = currentDateStr;
+
+                      const isAgent = msg.direction === 'outbound' || msg.senderId === 'me' || String(msg.senderId).startsWith(process.env.NEXT_PUBLIC_GREENAPI_ID_INSTANCE || 'none');
+                      
+                      return (
+                        <React.Fragment key={idx}>
+                          {showSeparator && (
+                            <div className={styles.dateSeparator}>
+                              <span>{currentDateStr}</span>
+                            </div>
+                          )}
+                          <div className={`${styles.chatMessage} ${isAgent ? styles.agent : styles.user}`}>
+                            <div className={styles.chatText} style={{ whiteSpace: 'pre-wrap' }}>
+                              {msgText}
+                            </div>
+                            <span className={styles.chatTime}>
+                              {msgDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </React.Fragment>
+                      );
+                    });
+                  })()}
                 </div>
               )}
 
