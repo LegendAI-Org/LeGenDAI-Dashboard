@@ -1,5 +1,5 @@
 import { X, User, Phone, Mail, FileText, Bot, MessageCircle, Send, DollarSign } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import styles from './LeadModal.module.css';
 
