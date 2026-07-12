@@ -48,8 +48,9 @@ export async function GET(request: Request) {
       .from('whatsapp_messages')
       .select('*')
       .in('lead_phone', phoneVariants)
+      .eq('deleted_for_me', false)
       .order('created_at', { ascending: true });
-    
+
     if (error) throw error;
     const rows = data || [];
 
@@ -58,12 +59,15 @@ export async function GET(request: Request) {
     // { textMessage: string, senderId: string, timestamp: number }
     const formattedMessages = rows.map(msg => {
       // Support both content formats: {body: "..."} and {text: {body: "..."}}
-      const bodyText = msg.content?.body 
-        || msg.content?.text?.body 
-        || msg.content?.caption
-        || (typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content));
-      
+      const bodyText = msg.deleted_for_everyone
+        ? '🚫 הודעה זו נמחקה'
+        : (msg.content?.body
+          || msg.content?.text?.body
+          || msg.content?.caption
+          || (typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)));
+
       return {
+        id: msg.id,
         idMessage: msg.message_id || msg.id,
         typeMessage: 'textMessage', // Always set so the frontend renders it
         textMessage: bodyText,
@@ -72,7 +76,8 @@ export async function GET(request: Request) {
           ? new Date(msg.created_at).getTime() / 1000
           : Date.now() / 1000,
         direction: msg.direction,
-        status: msg.status
+        status: msg.status,
+        deletedForEveryone: !!msg.deleted_for_everyone
       };
     });
 
@@ -150,6 +155,77 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, messageId, phone: intlPhone });
   } catch (error: any) {
     console.error('Error sending message:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// Mirrors WhatsApp's own long-press menu: "delete for me" (hide from this
+// dashboard only) or "delete for everyone" (also delete on WhatsApp itself —
+// only possible for messages we sent, within GreenAPI's/WhatsApp's own time window).
+export async function DELETE(request: Request) {
+  try {
+    const { id, scope } = await request.json();
+    if (!id || (scope !== 'me' && scope !== 'everyone')) {
+      return NextResponse.json({ error: 'id and scope ("me" | "everyone") are required' }, { status: 400 });
+    }
+
+    const { data: msg, error: fetchError } = await supabase
+      .from('whatsapp_messages')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !msg) {
+      return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+    }
+
+    if (scope === 'me') {
+      const { error } = await supabase
+        .from('whatsapp_messages')
+        .update({ deleted_for_me: true })
+        .eq('id', id);
+      if (error) throw error;
+      return NextResponse.json({ success: true, scope: 'me' });
+    }
+
+    // scope === 'everyone': only our own sent messages can be deleted on WhatsApp itself
+    if (msg.direction !== 'outbound') {
+      return NextResponse.json({ error: 'ניתן למחוק "אצל כולם" רק הודעות ששלחת בעצמך' }, { status: 400 });
+    }
+    if (!msg.message_id) {
+      return NextResponse.json({ error: 'להודעה זו אין מזהה וואטסאפ — אפשר למחוק רק "אצלי"' }, { status: 400 });
+    }
+
+    const instanceId = process.env.GREENAPI_ID_INSTANCE || '7107631046';
+    const token = process.env.GREENAPI_API_TOKEN_INSTANCE;
+    if (!token) {
+      return NextResponse.json({ error: 'GreenAPI credentials not configured' }, { status: 500 });
+    }
+
+    const greenRes = await fetch(`https://api.green-api.com/waInstance${instanceId}/deleteMessage/${token}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId: `${msg.lead_phone}@c.us`, idMessage: msg.message_id })
+    });
+    const greenData = await greenRes.json().catch(() => ({}));
+
+    if (!greenRes.ok || greenData.error) {
+      console.error('GreenAPI deleteMessage error:', greenData);
+      return NextResponse.json(
+        { error: 'לא ניתן למחוק אצל כולם (ייתכן שחלון הזמן למחיקה חלף) — אפשר למחוק "אצלי" בלבד' },
+        { status: 502 }
+      );
+    }
+
+    const { error } = await supabase
+      .from('whatsapp_messages')
+      .update({ deleted_for_everyone: true })
+      .eq('id', id);
+    if (error) throw error;
+
+    return NextResponse.json({ success: true, scope: 'everyone' });
+  } catch (error: any) {
+    console.error('Error deleting message:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

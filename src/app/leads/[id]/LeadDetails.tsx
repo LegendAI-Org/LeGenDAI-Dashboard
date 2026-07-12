@@ -4,14 +4,27 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { User, Phone, Mail, FileText, Bot, MessageCircle } from 'lucide-react';
 import styles from '@/components/LeadModal.module.css';
+import ChatMessageMenu from '@/components/ChatMessageMenu';
 
 interface ChatMessage {
+  id?: string;
   idMessage: string;
   textMessage: string;
   senderId: string;
   timestamp: number;
   direction: 'inbound' | 'outbound';
+  deletedForEveryone?: boolean;
 }
+
+// GreenAPI/WhatsApp only allow deleting a sent message "for everyone" within
+// roughly an hour of sending — mirror that in the UI so the option doesn't
+// appear for messages the server would reject anyway.
+const DELETE_FOR_EVERYONE_WINDOW_SEC = 60 * 60;
+const canDeleteForEveryone = (msg: ChatMessage) =>
+  msg.direction === 'outbound' &&
+  !!msg.id &&
+  !msg.deletedForEveryone &&
+  (Date.now() / 1000 - msg.timestamp) < DELETE_FOR_EVERYONE_WINDOW_SEC;
 
 export default function LeadDetails({ initialLead }: { initialLead: any }) {
   const [lead, setLead] = useState(initialLead);
@@ -24,15 +37,17 @@ export default function LeadDetails({ initialLead }: { initialLead: any }) {
   const chatBoxRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
-  useEffect(() => {
+  const fetchMessages = () => {
     if (!lead.phone) return;
     setChatLoading(true);
-    fetch(`/api/whatsapp?phone=${lead.phone}`)
+    return fetch(`/api/whatsapp?phone=${lead.phone}`)
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setMessages(data); })
       .catch(() => {})
       .finally(() => setChatLoading(false));
-  }, [lead.phone]);
+  };
+
+  useEffect(() => { fetchMessages(); }, [lead.phone]);
 
   useEffect(() => {
     if (chatBoxRef.current) {
@@ -50,14 +65,8 @@ export default function LeadDetails({ initialLead }: { initialLead: any }) {
         body: JSON.stringify({ phone: lead.phone, message: newMessage })
       });
       if (res.ok) {
-        setMessages(prev => [...prev, {
-          idMessage: `local_${Date.now()}`,
-          textMessage: newMessage,
-          senderId: 'me',
-          timestamp: Date.now() / 1000,
-          direction: 'outbound'
-        }]);
         setNewMessage('');
+        await fetchMessages(); // refetch so the new message has a real db id (needed to delete it)
       }
     } catch {}
     setSending(false);
@@ -164,9 +173,24 @@ export default function LeadDetails({ initialLead }: { initialLead: any }) {
                   if (!msg.textMessage) return null;
                   const isAgent = msg.direction === 'outbound' || msg.senderId === 'me';
                   const time = msg.timestamp ? new Date(msg.timestamp * 1000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '';
+                  const align = isAgent ? 'agent' : 'user';
                   return (
                     <div key={msg.idMessage || idx} className={`${styles.chatMessage} ${isAgent ? styles.agent : styles.user}`}>
-                      <div style={{ whiteSpace: 'pre-wrap' }}>{msg.textMessage}</div>
+                      {msg.id && (
+                        <ChatMessageMenu
+                          messageId={msg.id}
+                          align={align}
+                          canDeleteForEveryone={canDeleteForEveryone(msg)}
+                          onDeleted={(scope) => {
+                            setMessages(prev => scope === 'me'
+                              ? prev.filter(m => m.id !== msg.id)
+                              : prev.map(m => m.id === msg.id ? { ...m, deletedForEveryone: true, textMessage: '🚫 הודעה זו נמחקה' } : m));
+                          }}
+                        />
+                      )}
+                      <div style={{ whiteSpace: 'pre-wrap' }} className={msg.deletedForEveryone ? styles.deletedMessage : undefined}>
+                        {msg.textMessage}
+                      </div>
                       <span className={styles.chatTime}>{time}</span>
                     </div>
                   );

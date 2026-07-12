@@ -330,6 +330,82 @@
   display: block;
 }
 
+.deletedMessage {
+  font-style: italic;
+  opacity: 0.65;
+}
+
+.msgMenuWrap {
+  position: absolute;
+  top: 2px;
+}
+
+.chatMessage.agent .msgMenuWrap { left: -26px; }
+.chatMessage.user .msgMenuWrap { right: -26px; }
+
+.msgMenuBtn {
+  opacity: 0;
+  transition: opacity 0.15s;
+  background: rgba(0, 0, 0, 0.25);
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-primary);
+  padding: 0;
+}
+
+.chatMessage:hover .msgMenuBtn,
+.msgMenuBtnOpen {
+  opacity: 1;
+}
+
+.msgMenuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+}
+
+.msgMenu {
+  position: absolute;
+  top: 22px;
+  z-index: 20;
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  box-shadow: var(--glass-shadow);
+  min-width: 140px;
+  overflow: hidden;
+}
+
+.msgMenu.agent { left: 0; }
+.msgMenu.user { right: 0; }
+
+.msgMenuItem {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.9rem;
+  text-align: right;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.msgMenuItem:hover {
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.msgMenuItemDanger {
+  color: var(--danger);
+}
+
 .chatInputWrapper {
   display: flex;
   gap: 0.5rem;

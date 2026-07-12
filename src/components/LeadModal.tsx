@@ -2,6 +2,7 @@ import { X, User, Phone, Mail, FileText, Bot, MessageCircle, Send, DollarSign } 
 import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import styles from './LeadModal.module.css';
+import ChatMessageMenu from './ChatMessageMenu';
 
 type Lead = {
   id: string;
@@ -24,6 +25,7 @@ type Props = {
 };
 
 type WhatsAppMessage = {
+  id?: string;
   idMessage: string;
   typeMessage: string;
   textMessage: string;
@@ -32,7 +34,18 @@ type WhatsAppMessage = {
   direction?: 'inbound' | 'outbound';
   status?: string;
   extendedTextMessage?: { text: string };
+  deletedForEveryone?: boolean;
 };
+
+// GreenAPI/WhatsApp only allow deleting a sent message "for everyone" within
+// roughly an hour of sending — mirror that in the UI so the option doesn't
+// appear for messages the server would reject anyway.
+const DELETE_FOR_EVERYONE_WINDOW_SEC = 60 * 60;
+const canDeleteForEveryone = (msg: WhatsAppMessage) =>
+  msg.direction === 'outbound' &&
+  !!msg.id &&
+  !msg.deletedForEveryone &&
+  (Date.now() / 1000 - msg.timestamp) < DELETE_FOR_EVERYONE_WINDOW_SEC;
 
 const statusOptions = [
   'ליד חדש',
@@ -127,18 +140,9 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
       if (!res.ok) {
         throw new Error('Failed to send message');
       }
-      
-      // Optimistically add the message
-      const optimMsg: WhatsAppMessage = {
-        idMessage: Date.now().toString(),
-        typeMessage: 'textMessage',
-        textMessage: newMessage.trim(),
-        senderId: 'me', // indicates outgoing
-        timestamp: Math.floor(Date.now() / 1000)
-      };
-      
-      setMessages(prev => [...prev, optimMsg]);
+
       setNewMessage('');
+      await fetchChatHistory(); // refetch so the new message has a real db id (needed to delete it)
     } catch (err: any) {
       alert(err.message || 'Error sending message');
     } finally {
@@ -336,7 +340,8 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
                       lastDateStr = currentDateStr;
 
                       const isAgent = msg.direction === 'outbound' || msg.senderId === 'me' || String(msg.senderId).startsWith(process.env.NEXT_PUBLIC_GREENAPI_ID_INSTANCE || 'none');
-                      
+                      const align = isAgent ? 'agent' : 'user';
+
                       return (
                         <React.Fragment key={idx}>
                           {showSeparator && (
@@ -345,7 +350,22 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
                             </div>
                           )}
                           <div className={`${styles.chatMessage} ${isAgent ? styles.agent : styles.user}`}>
-                            <div className={styles.chatText} style={{ whiteSpace: 'pre-wrap' }}>
+                            {msg.id && (
+                              <ChatMessageMenu
+                                messageId={msg.id}
+                                align={align}
+                                canDeleteForEveryone={canDeleteForEveryone(msg)}
+                                onDeleted={(scope) => {
+                                  setMessages(prev => scope === 'me'
+                                    ? prev.filter(m => m.id !== msg.id)
+                                    : prev.map(m => m.id === msg.id ? { ...m, deletedForEveryone: true, textMessage: '🚫 הודעה זו נמחקה' } : m));
+                                }}
+                              />
+                            )}
+                            <div
+                              className={`${styles.chatText} ${msg.deletedForEveryone ? styles.deletedMessage : ''}`}
+                              style={{ whiteSpace: 'pre-wrap' }}
+                            >
                               {msgText}
                             </div>
                             <span className={styles.chatTime}>
