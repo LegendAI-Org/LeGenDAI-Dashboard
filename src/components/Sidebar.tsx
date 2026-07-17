@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Users, Clock, MessageSquare, CreditCard, PieChart, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Clock, MessageSquare, CreditCard, PieChart, LogOut, CalendarRange } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import styles from './Sidebar.module.css';
 
@@ -32,6 +32,10 @@ export default function Sidebar() {
         <Link href="/leads" className={`${styles.navItem} ${pathname === '/leads' ? styles.active : ''}`}>
           <Users size={20} />
           <span>ניהול לידים</span>
+        </Link>
+        <Link href="/summary" className={`${styles.navItem} ${pathname === '/summary' ? styles.active : ''}`}>
+          <CalendarRange size={20} />
+          <span>סיכום תקופתי</span>
         </Link>
         <Link href="/time" className={`${styles.navItem} ${pathname === '/time' ? styles.active : ''}`}>
           <Clock size={20} />
