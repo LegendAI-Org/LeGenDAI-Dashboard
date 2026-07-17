@@ -1,7 +1,16 @@
 import styles from './page.module.css';
-import { Users, DollarSign, UserCheck, Calendar, ListChecks } from 'lucide-react';
+import { ListChecks } from 'lucide-react';
 import { createClient } from '@/utils/supabase/server';
 import PeriodFilter from '@/components/PeriodFilter';
+import SummaryCards, { LeadRow, MeetingRow, PayerRow } from '@/components/SummaryCards';
+
+function leadName(l: { name?: string; form_data?: Record<string, string> }): string {
+  if (l.name && l.name !== 'ללא שם') return l.name;
+  const fd = l.form_data || {};
+  const first = fd['שם פרטי'] || '';
+  const last = fd['שם משפחה'] || '';
+  return `${first} ${last}`.trim() || 'ללא שם';
+}
 
 // Frontend-only canonicalization of the messy multi-language status field that has
 // accumulated in Supabase over time (English/Hebrew variants from different code
@@ -57,6 +66,7 @@ type MorningSummary = {
   revenue?: number;
   registrations?: number;
   documentCount?: number;
+  payers?: PayerRow[];
   reason?: string;
 };
 
@@ -115,10 +125,19 @@ export default async function SummaryPage({
   const sortedStatuses = [...statusCounts.entries()].sort((a, b) => b[1] - a[1]);
   const sortedSources = [...sourceCounts.entries()].sort((a, b) => b[1] - a[1]);
 
+  // Lists for the click-to-expand drill-down under each card.
+  const leadsList: LeadRow[] = (leads || []).map(l => ({
+    name: leadName(l), phone: l.phone || '', status: canonicalStatus(l.status), date: l.created_at || '',
+  }));
+  const meetingsList: MeetingRow[] = (leads || [])
+    .filter(l => canonicalStatus(l.status) === 'נקבעה פגישה')
+    .map(l => ({ name: leadName(l), phone: l.phone || '', date: l.created_at || '' }));
+
   // Money & registrations — sourced live from Morning (Green Invoice), not from lead
   // records. Lead<->invoice matching by phone/email was verified unreliable (~1/34).
   const morning = await fetchMorningSummary(fromDate, toDate);
   const morningOk = morning.status === 'ok';
+  const payersList: PayerRow[] = morning.payers || [];
 
   return (
     <div className={styles.dashboard}>
@@ -130,61 +149,17 @@ export default async function SummaryPage({
         <PeriodFilter />
       </header>
 
-      <div className={styles.statsGrid}>
-        <div className={`glass-card ${styles.statCard}`}>
-          <div className={styles.statHeader}>
-            <div className={styles.statIconWrapper} style={{ background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-primary)' }}>
-              <Users size={24} />
-            </div>
-            <span className={styles.statLabel}>לידים חדשים</span>
-          </div>
-          <div className={styles.statValue}>{totalLeads}</div>
-          <div className={styles.statNote}>בתקופה שנבחרה</div>
-        </div>
-
-        <div className={`glass-card ${styles.statCard}`}>
-          <div className={styles.statHeader}>
-            <div className={styles.statIconWrapper} style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)' }}>
-              <DollarSign size={24} />
-            </div>
-            <span className={styles.statLabel}>הכנסה מאומתת (מורנינג)</span>
-          </div>
-          {morningOk ? (
-            <>
-              <div className={styles.statValue}>₪{(morning.revenue || 0).toLocaleString()}</div>
-              <div className={styles.statNote}>{morning.documentCount} מסמכים תקפים</div>
-            </>
-          ) : (
-            <div className={styles.errorNote}>לא זמין כרגע ({morning.reason})</div>
-          )}
-        </div>
-
-        <div className={`glass-card ${styles.statCard}`}>
-          <div className={styles.statHeader}>
-            <div className={styles.statIconWrapper} style={{ background: 'rgba(96, 165, 250, 0.1)', color: 'var(--accent-secondary)' }}>
-              <UserCheck size={24} />
-            </div>
-            <span className={styles.statLabel}>נרשמו ושילמו</span>
-          </div>
-          {morningOk ? (
-            <div className={styles.statValue}>{morning.registrations || 0}</div>
-          ) : (
-            <div className={styles.errorNote}>לא זמין כרגע</div>
-          )}
-          <div className={styles.statNote}>לקוחות ייחודיים שחויבו בפועל</div>
-        </div>
-
-        <div className={`glass-card ${styles.statCard}`}>
-          <div className={styles.statHeader}>
-            <div className={styles.statIconWrapper} style={{ background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)' }}>
-              <Calendar size={24} />
-            </div>
-            <span className={styles.statLabel}>פגישות שנקבעו</span>
-          </div>
-          <div className={styles.statValue}>{scheduledMeetings}</div>
-          <div className={styles.statNote}>מהלידים בתקופה</div>
-        </div>
-      </div>
+      <SummaryCards
+        totalLeads={totalLeads}
+        revenue={morning.revenue || 0}
+        registrations={morning.registrations || 0}
+        scheduledMeetings={scheduledMeetings}
+        morningOk={morningOk}
+        morningReason={morning.reason}
+        leadsList={leadsList}
+        meetingsList={meetingsList}
+        payersList={payersList}
+      />
 
       <div className={styles.contentGrid}>
         <div className={`glass-card ${styles.panel}`}>

@@ -134,6 +134,111 @@
   }
 }
 
+/* Clickable stat cards (drill-down) */
+.clickable {
+  cursor: pointer;
+  text-align: right;
+  border: 1px solid transparent;
+  transition: border-color 0.2s ease, transform 0.15s ease;
+  font-family: inherit;
+  width: 100%;
+}
+
+.clickable:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-primary);
+}
+
+.clickable.active {
+  border-color: var(--accent-primary);
+}
+
+.chevron {
+  margin-right: auto;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.drillPanel {
+  padding: 1.5rem;
+  animation: fadeIn 0.3s ease;
+}
+
+.drillHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.drillCount {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--accent-primary);
+  border-radius: 999px;
+  padding: 0.1rem 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.drillRows {
+  display: flex;
+  flex-direction: column;
+  max-height: 460px;
+  overflow-y: auto;
+}
+
+.drillRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.25rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.drillRow:last-child {
+  border-bottom: none;
+}
+
+.drillMain {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.drillSub {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  direction: ltr;
+  text-align: right;
+}
+
+.drillRight {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.drillTag {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.drillSide {
+  font-weight: 600;
+  color: var(--success);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
