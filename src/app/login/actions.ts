@@ -8,6 +8,7 @@ import { createClient } from '@/utils/supabase/server'
 // username instead, so map known usernames to the underlying auth email. Anything
 // containing "@" is treated as an email and passed through unchanged.
 const USERNAME_TO_EMAIL: Record<string, string> = {
+  'nogamaivar': 'noga@financialbreathing.com',
   'noga meivar': 'noga@financialbreathing.com',
 }
 
