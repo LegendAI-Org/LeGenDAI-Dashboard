@@ -31,14 +31,14 @@ export default function LoginPage({
 
         <form style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label htmlFor="email" style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-secondary)' }}>אימייל</label>
-            <input 
-              id="email" 
-              name="email" 
-              type="email" 
-              required 
-              className="input-field" 
-              placeholder="name@company.com"
+            <label htmlFor="email" style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-secondary)' }}>שם משתמש</label>
+            <input
+              id="email"
+              name="email"
+              type="text"
+              required
+              className="input-field"
+              placeholder="שם משתמש"
               dir="ltr"
             />
           </div>
