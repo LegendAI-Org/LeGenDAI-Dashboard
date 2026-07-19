@@ -4,6 +4,11 @@ import { createClient } from '@/utils/supabase/server';
 import PeriodFilter from '@/components/PeriodFilter';
 import SummaryCards, { LeadRow, MeetingRow, PayerRow } from '@/components/SummaryCards';
 
+// Every number on this page is derived from searchParams (the period filter), so the page
+// has to be rendered per request. Without this Next prerenders it once and picking
+// "14 יום" only changes the URL — the cards keep showing the 7-day figures.
+export const dynamic = 'force-dynamic';
+
 function leadName(l: { name?: string; form_data?: Record<string, string> }): string {
   if (l.name && l.name !== 'ללא שם') return l.name;
   const fd = l.form_data || {};
