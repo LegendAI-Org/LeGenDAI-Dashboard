@@ -108,6 +108,30 @@ export async function POST(request: Request) {
       intlPhone = '972' + digits;
     }
 
+    // Preferred path: the CRM backend, which sends through Meta's official Cloud API.
+    // It also applies the central send guard (opt-out registry, quiet hours) that this
+    // route never had, and it logs the message itself — so we return right after it.
+    // The GreenAPI path below stays as the fallback for deployments that have not been
+    // pointed at the CRM yet; on Noga's banned number it can no longer deliver anything.
+    if (process.env.CRM_API_URL && process.env.DASHBOARD_API_KEY) {
+      const crmRes = await fetch(`${process.env.CRM_API_URL}/api/noga/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: intlPhone,
+          text: message,
+          key: process.env.DASHBOARD_API_KEY,
+        }),
+      });
+      const crmData = await crmRes.json().catch(() => ({}));
+      if (crmRes.ok && crmData.status === 'sent') {
+        return NextResponse.json({ success: true, phone: intlPhone, via: 'cloud-api' });
+      }
+      const reason = crmData?.detail || `CRM responded ${crmRes.status}`;
+      console.error('[WhatsApp] Cloud API send failed:', reason);
+      return NextResponse.json({ error: `שליחה נכשלה: ${reason}` }, { status: 502 });
+    }
+
     // GreenAPI credentials (Noga's instance)
     const instanceId = process.env.GREENAPI_ID_INSTANCE || '7107631046';
     const token = process.env.GREENAPI_API_TOKEN_INSTANCE;
