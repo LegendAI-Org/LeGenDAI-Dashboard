@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
-import { MessageSquare, RefreshCw, Send, AlertTriangle } from 'lucide-react';
+import { MessageSquare, RefreshCw, Send, AlertTriangle, ChevronRight } from 'lucide-react';
 import styles from './page.module.css';
 
 // The official Cloud API number has no phone behind it: these conversations exist only
@@ -167,7 +167,7 @@ export default function ConversationsPage() {
 
       {error && <div className={styles.error}><AlertTriangle size={16} /> {error}</div>}
 
-      <div className={styles.layout}>
+      <div className={`${styles.layout} ${selected ? styles.threadOpen : ''}`}>
         <aside className={styles.list}>
           {loadingList && <div className={styles.empty}>טוען שיחות…</div>}
           {!loadingList && conversations.length === 0 && (
@@ -198,9 +198,18 @@ export default function ConversationsPage() {
           {selected && (
             <>
               <div className={styles.threadHeader}>
-                <div>
-                  <div className={styles.threadName}>{selected.name || 'ללא שם'}</div>
-                  <div className={styles.threadPhone}>{localPhone(selected.phone)}</div>
+                <div className={styles.threadHeaderStart}>
+                  <button
+                    className={styles.backBtn}
+                    onClick={() => setSelected(null)}
+                    aria-label="חזרה לרשימת השיחות"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                  <div>
+                    <div className={styles.threadName}>{selected.name || 'ללא שם'}</div>
+                    <div className={styles.threadPhone}>{localPhone(selected.phone)}</div>
+                  </div>
                 </div>
                 {selected.status && <span className={styles.statusChip}>{selected.status}</span>}
               </div>

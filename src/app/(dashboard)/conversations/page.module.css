@@ -147,6 +147,26 @@
   border-bottom: 1px solid var(--glass-border);
 }
 
+.threadHeaderStart {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Mobile-only "back to the conversation list" button (WhatsApp-style). */
+.backBtn {
+  display: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 .threadName { font-weight: 600; color: var(--text-primary); }
 .threadPhone { font-size: 0.8rem; color: var(--text-secondary); direction: ltr; text-align: right; }
 
@@ -274,12 +294,25 @@
   background: color-mix(in srgb, var(--warning) 8%, transparent);
 }
 
+/* WhatsApp-style single pane on mobile: the list fills the screen; opening a
+   conversation replaces it with the full-screen thread, and the back button
+   (.backBtn, hidden on desktop) returns to the list. */
 @media (max-width: 900px) {
-  .layout { grid-template-columns: 1fr; grid-template-rows: 240px 1fr; }
+  .layout { display: block; }
+  .list { height: 100%; }
+  .thread { display: none; }
+  .threadOpen .list { display: none; }
+  .threadOpen .thread { display: flex; height: 100%; }
+  .backBtn { display: grid; }
 }
 
 /* Matches .main-content's mobile padding (1rem top + 90px bottom for the bottom nav),
-   so the page still fills exactly the viewport and scrolls internally, not as a document. */
+   so the page still fills exactly the viewport and scrolls internally, not as a document.
+   dvh (when supported) tracks the real visible area under iOS Safari's collapsing URL bar. */
 @media (max-width: 768px) {
-  .page { height: calc(100vh - 1rem - 90px); }
+  .page {
+    padding: 8px;
+    height: calc(100vh - 1rem - 90px);
+    height: calc(100dvh - 1rem - 90px);
+  }
 }
