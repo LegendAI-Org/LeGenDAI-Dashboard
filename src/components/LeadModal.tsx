@@ -76,21 +76,33 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
   const [savingDeal, setSavingDeal] = useState(false);
   
   const chatBoxRef = useRef<HTMLDivElement>(null);
+  const prevMsgCount = useRef(0);
 
   useEffect(() => {
-    if (lead.phone) {
-      fetchChatHistory();
-    }
+    if (!lead.phone) return;
+    prevMsgCount.current = 0; // opening a lead -> first load scrolls to the latest
+    fetchChatHistory();
+    // Live refresh: a reply that arrives while the card is open shows up on its own,
+    // no need to close and reopen. Silent so it never flashes the loading spinner.
+    const t = setInterval(() => fetchChatHistory(true), 3000);
+    return () => clearInterval(t);
   }, [lead.phone]);
 
   useEffect(() => {
-    if (chatBoxRef.current) {
-      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+    const el = chatBoxRef.current;
+    if (!el) return;
+    const grew = messages.length > prevMsgCount.current;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+    // Jump to the latest on first load, or on a new message while already at the bottom —
+    // but never yank down while she scrolls up to read history.
+    if (prevMsgCount.current === 0 || (grew && nearBottom)) {
+      el.scrollTop = el.scrollHeight;
     }
+    prevMsgCount.current = messages.length;
   }, [messages]);
 
-  const fetchChatHistory = async () => {
-    setLoadingChat(true);
+  const fetchChatHistory = async (silent = false) => {
+    if (!silent) setLoadingChat(true);
     setChatError('');
     try {
       const res = await fetch(`/api/whatsapp?phone=${lead.phone}`);
@@ -103,9 +115,9 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
         setMessages(data);
       }
     } catch (err: any) {
-      setChatError(err.message || 'Error loading chat');
+      if (!silent) setChatError(err.message || 'Error loading chat');
     } finally {
-      setLoadingChat(false);
+      if (!silent) setLoadingChat(false);
     }
   };
 
