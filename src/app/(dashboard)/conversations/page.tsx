@@ -56,7 +56,7 @@ export default function ConversationsPage() {
 
   const loadConversations = useCallback(async () => {
     try {
-      const res = await fetch('/api/whatsapp/conversations');
+      const res = await fetch(`/api/whatsapp/conversations?_ts=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'שגיאה בטעינת השיחות');
       setConversations(data.conversations || []);
@@ -70,7 +70,7 @@ export default function ConversationsPage() {
 
   const loadThread = useCallback(async (phone: string) => {
     try {
-      const res = await fetch(`/api/whatsapp?phone=${encodeURIComponent(phone)}`);
+      const res = await fetch(`/api/whatsapp?phone=${encodeURIComponent(phone)}&_ts=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       setMessages(Array.isArray(data) ? data : []);
     } catch {
