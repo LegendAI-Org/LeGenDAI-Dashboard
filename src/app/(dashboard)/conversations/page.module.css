@@ -287,6 +287,49 @@
   opacity: 0.7;
 }
 
+/* WhatsApp-style emoji reaction pinned to the bubble's bottom corner. */
+.reactionChip {
+  position: absolute;
+  bottom: -12px;
+  inset-inline-start: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.bubble { position: relative; cursor: default; }
+.bubble.theirs { cursor: pointer; }
+.hasReaction { margin-bottom: 12px; }
+
+.emojiPicker {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  width: fit-content;
+}
+
+.emojiPicker.theirs { align-self: flex-end; }
+.emojiPicker.mine { align-self: flex-start; }
+
+.emojiBtn {
+  border: none;
+  background: transparent;
+  font-size: 1.15rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 50%;
+  transition: transform 0.12s;
+}
+
+.emojiBtn:hover { transform: scale(1.25); }
+
 .composer {
   display: flex;
   gap: 10px;

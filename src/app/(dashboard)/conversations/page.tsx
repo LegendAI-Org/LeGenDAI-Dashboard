@@ -21,13 +21,23 @@ type Conversation = {
 
 type Message = {
   id: number | string;
+  idMessage: string;
   textMessage: string;
   direction: string;
   senderId: string;
   timestamp: number;
+  type?: string;
+  reactionTo?: string | null;
 };
 
 const POLL_MS = 3000;
+
+// The small palette offered when reacting to a lead's message (WhatsApp long-press).
+const REACTION_EMOJIS = ['👍', '❤️', '😊', '🙏', '✅'];
+
+// Re-anchor the WhatsApp "typing…" indicator at most this often while Liya types
+// (Meta shows it for ~25s per call, so 10s keeps it alive without spamming the API).
+const TYPING_THROTTLE_MS = 10_000;
 
 function timeLabel(value: string | number) {
   const d = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
@@ -69,8 +79,10 @@ export default function ConversationsPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const prevMsgCount = useRef(0);
+  const lastTypingSent = useRef(0);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -145,6 +157,49 @@ export default function ConversationsPage() {
     } finally {
       setSending(false);
     }
+  };
+
+  // Reactions are stored as their own rows carrying the target's wamid; fold them
+  // into a map (last one wins, like WhatsApp) and keep only real bubbles in the list.
+  const reactionsByTarget = new Map<string, string>();
+  for (const m of messages) {
+    if (m.type === 'reaction' && m.reactionTo) {
+      if (m.textMessage) reactionsByTarget.set(m.reactionTo, m.textMessage);
+      else reactionsByTarget.delete(m.reactionTo);
+    }
+  }
+  const visibleMessages = messages.filter(m => m.type !== 'reaction');
+
+  const sendReaction = async (msg: Message, emoji: string) => {
+    if (!selected) return;
+    setPickerFor(null);
+    try {
+      await fetch('/api/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: selected.phone,
+          reaction: { messageId: msg.idMessage, emoji },
+        }),
+      });
+      await loadThread(selected.phone);
+    } catch {}
+  };
+
+  // Shows "typing…" on the lead's WhatsApp while Liya types. Anchored to the last
+  // inbound message (the API requires it); silently does nothing on a thread where
+  // the lead never wrote. Fire-and-forget — the composer must never wait on it.
+  const notifyTyping = () => {
+    const now = Date.now();
+    if (now - lastTypingSent.current < TYPING_THROTTLE_MS) return;
+    const lastInbound = [...messages].reverse().find(m => m.direction === 'inbound' && m.type !== 'reaction');
+    if (!lastInbound?.idMessage) return;
+    lastTypingSent.current = now;
+    fetch('/api/whatsapp/typing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId: lastInbound.idMessage }),
+    }).catch(() => {});
   };
 
   const waiting = conversations.filter(c => c.needs_reply).length;
@@ -226,8 +281,9 @@ export default function ConversationsPage() {
               </div>
 
               <div className={styles.messages} ref={threadRef}>
-                {messages.map((m, i) => {
-                  const showDate = i === 0 || dayKey(m.timestamp) !== dayKey(messages[i - 1].timestamp);
+                {visibleMessages.map((m, i) => {
+                  const showDate = i === 0 || dayKey(m.timestamp) !== dayKey(visibleMessages[i - 1].timestamp);
+                  const reaction = reactionsByTarget.get(m.idMessage);
                   return (
                     <Fragment key={m.id}>
                       {showDate && (
@@ -236,11 +292,31 @@ export default function ConversationsPage() {
                         </div>
                       )}
                       <div
-                        className={`${styles.bubble} ${m.direction === 'outbound' ? styles.mine : styles.theirs}`}
+                        className={`${styles.bubble} ${m.direction === 'outbound' ? styles.mine : styles.theirs} ${reaction ? styles.hasReaction : ''}`}
+                        onClick={() => {
+                          if (m.direction === 'inbound' && m.idMessage) {
+                            setPickerFor(pickerFor === m.idMessage ? null : m.idMessage);
+                          }
+                        }}
                       >
                         <div className={styles.bubbleText}>{m.textMessage}</div>
                         <div className={styles.bubbleTime}>{timeLabel(m.timestamp)}</div>
+                        {reaction && <span className={styles.reactionChip}>{reaction}</span>}
                       </div>
+                      {pickerFor === m.idMessage && (
+                        <div className={`${styles.emojiPicker} ${m.direction === 'outbound' ? styles.mine : styles.theirs}`}>
+                          {REACTION_EMOJIS.map(e => (
+                            <button key={e} className={styles.emojiBtn} onClick={() => sendReaction(m, e)}>
+                              {e}
+                            </button>
+                          ))}
+                          {reaction && (
+                            <button className={styles.emojiBtn} onClick={() => sendReaction(m, '')} title="הסרת תגובה">
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </Fragment>
                   );
                 })}
@@ -254,7 +330,7 @@ export default function ConversationsPage() {
                   <textarea
                     className={styles.input}
                     value={draft}
-                    onChange={e => setDraft(e.target.value)}
+                    onChange={e => { setDraft(e.target.value); if (e.target.value) notifyTyping(); }}
                     onKeyDown={e => {
                       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
                     }}

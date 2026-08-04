@@ -77,6 +77,10 @@ export async function GET(request: Request) {
           : Date.now() / 1000,
         direction: msg.direction,
         status: msg.status,
+        type: msg.type,
+        // A reaction row carries the wamid of the message it reacts to, so the thread
+        // view can attach the emoji to the right bubble instead of showing a new one.
+        reactionTo: msg.content?.reaction_to || null,
         deletedForEveryone: !!msg.deleted_for_everyone
       };
     });
@@ -91,9 +95,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { phone, message } = await request.json();
+    const { phone, message, reaction } = await request.json();
 
-    if (!phone || !message) {
+    if (!phone || (!message && !reaction)) {
       return NextResponse.json({ error: 'Phone and message are required' }, { status: 400 });
     }
 
@@ -106,6 +110,30 @@ export async function POST(request: Request) {
       intlPhone = '972' + digits.slice(1);
     } else {
       intlPhone = '972' + digits;
+    }
+
+    // Emoji reaction on a lead's message (WhatsApp long-press style). Cloud API only —
+    // there is no GreenAPI fallback for reactions.
+    if (reaction?.messageId) {
+      if (!process.env.CRM_API_URL || !process.env.DASHBOARD_API_KEY) {
+        return NextResponse.json({ error: 'CRM API is not configured' }, { status: 500 });
+      }
+      const crmRes = await fetch(`${process.env.CRM_API_URL}/api/noga/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: intlPhone,
+          message_id: reaction.messageId,
+          emoji: reaction.emoji || '',
+          key: process.env.DASHBOARD_API_KEY,
+        }),
+      });
+      const crmData = await crmRes.json().catch(() => ({}));
+      if (crmRes.ok && crmData.status === 'sent') {
+        return NextResponse.json({ success: true, via: 'cloud-api' });
+      }
+      const reason = crmData?.detail || `CRM responded ${crmRes.status}`;
+      return NextResponse.json({ error: `התגובה נכשלה: ${reason}` }, { status: 502 });
     }
 
     // Preferred path: the CRM backend, which sends through Meta's official Cloud API.
