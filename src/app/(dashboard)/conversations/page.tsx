@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { MessageSquare, RefreshCw, Send, AlertTriangle } from 'lucide-react';
 import styles from './page.module.css';
 
@@ -41,6 +41,24 @@ function timeLabel(value: string | number) {
 
 function localPhone(phone: string) {
   return phone.startsWith('972') ? '0' + phone.slice(3) : phone;
+}
+
+// A stable per-day key, so a separator is drawn only when the calendar day actually
+// changes between two consecutive messages.
+function dayKey(timestamp: number) {
+  const d = new Date(timestamp * 1000);
+  return isNaN(d.getTime()) ? '' : d.toDateString();
+}
+
+function dayLabel(timestamp: number) {
+  const d = new Date(timestamp * 1000);
+  if (isNaN(d.getTime())) return '';
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return 'היום';
+  if (d.toDateString() === yesterday.toDateString()) return 'אתמול';
+  return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 export default function ConversationsPage() {
@@ -188,15 +206,24 @@ export default function ConversationsPage() {
               </div>
 
               <div className={styles.messages} ref={threadRef}>
-                {messages.map(m => (
-                  <div
-                    key={m.id}
-                    className={`${styles.bubble} ${m.direction === 'outbound' ? styles.mine : styles.theirs}`}
-                  >
-                    <div className={styles.bubbleText}>{m.textMessage}</div>
-                    <div className={styles.bubbleTime}>{timeLabel(m.timestamp)}</div>
-                  </div>
-                ))}
+                {messages.map((m, i) => {
+                  const showDate = i === 0 || dayKey(m.timestamp) !== dayKey(messages[i - 1].timestamp);
+                  return (
+                    <Fragment key={m.id}>
+                      {showDate && (
+                        <div className={styles.dateSeparator}>
+                          <span>{dayLabel(m.timestamp)}</span>
+                        </div>
+                      )}
+                      <div
+                        className={`${styles.bubble} ${m.direction === 'outbound' ? styles.mine : styles.theirs}`}
+                      >
+                        <div className={styles.bubbleText}>{m.textMessage}</div>
+                        <div className={styles.bubbleTime}>{timeLabel(m.timestamp)}</div>
+                      </div>
+                    </Fragment>
+                  );
+                })}
               </div>
 
               {/* Meta allows free text only for 24h after the person last wrote. Once that
