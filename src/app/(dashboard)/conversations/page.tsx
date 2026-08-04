@@ -27,7 +27,7 @@ type Message = {
   timestamp: number;
 };
 
-const POLL_MS = 20000;
+const POLL_MS = 3000;
 
 function timeLabel(value: string | number) {
   const d = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
@@ -52,6 +52,7 @@ export default function ConversationsPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const threadRef = useRef<HTMLDivElement>(null);
+  const prevMsgCount = useRef(0);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -87,13 +88,23 @@ export default function ConversationsPage() {
   // shows up without her having to click away and back.
   useEffect(() => {
     if (!selected) return;
+    prevMsgCount.current = 0; // switching threads -> next load scrolls to the latest
     loadThread(selected.phone);
     const t = setInterval(() => loadThread(selected.phone), POLL_MS);
     return () => clearInterval(t);
   }, [selected, loadThread]);
 
   useEffect(() => {
-    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight });
+    const el = threadRef.current;
+    if (!el) return;
+    const grew = messages.length > prevMsgCount.current;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+    // Jump to the latest on first load of a thread, or when a new message arrives while
+    // she's already at the bottom — but never yank her down while she scrolls up history.
+    if (prevMsgCount.current === 0 || (grew && nearBottom)) {
+      el.scrollTo({ top: el.scrollHeight });
+    }
+    prevMsgCount.current = messages.length;
   }, [messages]);
 
   const send = async () => {
