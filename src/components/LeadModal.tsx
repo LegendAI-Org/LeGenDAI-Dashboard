@@ -105,7 +105,11 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
     if (!silent) setLoadingChat(true);
     setChatError('');
     try {
-      const res = await fetch(`/api/whatsapp?phone=${lead.phone}`);
+      // _ts + no-store: the browser caches GET /api/whatsapp, so the 3s poll kept
+      // returning the same cached history — new inbound messages showed up only after a
+      // send (a POST invalidates the cache) or a reopen. A unique URL each time + no-store
+      // forces a fresh read every poll, so a reply appears live.
+      const res = await fetch(`/api/whatsapp?phone=${lead.phone}&_ts=${Date.now()}`, { cache: 'no-store' });
       if (!res.ok) {
         throw new Error('Failed to fetch history');
       }
