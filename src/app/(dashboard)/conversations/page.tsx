@@ -156,8 +156,9 @@ export default function ConversationsPage() {
           <h1 className={styles.title}>
             <MessageSquare size={22} /> שיחות וואטסאפ
           </h1>
-          <p className={styles.subtitle}>
-            {waiting > 0 ? `${waiting} שיחות ממתינות לתשובה` : 'אין שיחות שממתינות לתשובה'}
+          <p className={`${styles.subtitle} ${waiting > 0 ? styles.subtitleAlert : ''}`}>
+            {waiting > 0 && <span className={styles.dot} />}
+            {waiting > 0 ? ` ${waiting} שיחות ממתינות לתשובה` : 'אין שיחות שממתינות לתשובה'}
           </p>
         </div>
         <button className={styles.refresh} onClick={loadConversations} title="רענון">
@@ -166,6 +167,13 @@ export default function ConversationsPage() {
       </header>
 
       {error && <div className={styles.error}><AlertTriangle size={16} /> {error}</div>}
+
+      {waiting > 0 && !selected && (
+        <div className={styles.waitingBar}>
+          <span className={styles.dot} />
+          {waiting} שיחות ממתינות לתשובה
+        </div>
+      )}
 
       <div className={`${styles.layout} ${selected ? styles.threadOpen : ''}`}>
         <aside className={styles.list}>
@@ -180,7 +188,10 @@ export default function ConversationsPage() {
               className={`${styles.item} ${selected?.phone === c.phone ? styles.itemActive : ''}`}
             >
               <div className={styles.itemTop}>
-                <span className={styles.itemName}>{c.name || localPhone(c.phone)}</span>
+                <span className={styles.itemNameWrap}>
+                  {c.needs_reply && <span className={styles.dot} />}
+                  <span className={styles.itemName}>{c.name || localPhone(c.phone)}</span>
+                </span>
                 <span className={styles.itemTime}>{timeLabel(c.last_at)}</span>
               </div>
               <div className={styles.itemPreview}>
