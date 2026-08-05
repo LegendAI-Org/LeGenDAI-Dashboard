@@ -57,6 +57,8 @@ export const config = {
   matcher: [
     // manifest.webmanifest must stay public: the OS fetches it (sometimes without
     // auth cookies) when installing the app to the home screen.
-    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // sw.js likewise: a service worker script that answers with a login redirect fails
+    // registration, and then no notification ever arrives.
+    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

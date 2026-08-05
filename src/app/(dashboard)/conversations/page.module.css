@@ -40,6 +40,12 @@
   gap: 6px;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .refresh {
   display: grid;
   place-items: center;

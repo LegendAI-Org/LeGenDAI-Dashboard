@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { MessageSquare, RefreshCw, Send, AlertTriangle, ChevronRight } from 'lucide-react';
+import PushToggle from '@/components/PushToggle';
 import styles from './page.module.css';
 
 // The official Cloud API number has no phone behind it: these conversations exist only
@@ -114,6 +115,25 @@ export default function ConversationsPage() {
     return () => clearInterval(t);
   }, [loadConversations]);
 
+  // Tapping a push notification lands here with ?phone=…: open that thread straight away,
+  // otherwise the alert only gets Liya to the list and she still has to hunt for the lead.
+  // Once, on the first load that has the conversation — not on every poll.
+  const deepLinked = useRef(false);
+  useEffect(() => {
+    if (deepLinked.current || conversations.length === 0) return;
+    const phone = new URLSearchParams(window.location.search).get('phone');
+    if (!phone) {
+      deepLinked.current = true;
+      return;
+    }
+    const match = conversations.find(c => c.phone === phone);
+    if (match) {
+      deepLinked.current = true;
+      setSelected(match);
+      window.history.replaceState(null, '', '/conversations');
+    }
+  }, [conversations]);
+
   // Keep the open thread fresh too, so a reply that arrives while Liya is reading it
   // shows up without her having to click away and back.
   useEffect(() => {
@@ -216,9 +236,12 @@ export default function ConversationsPage() {
             {waiting > 0 ? ` ${waiting} שיחות ממתינות לתשובה` : 'אין שיחות שממתינות לתשובה'}
           </p>
         </div>
-        <button className={styles.refresh} onClick={loadConversations} title="רענון">
-          <RefreshCw size={18} />
-        </button>
+        <div className={styles.headerActions}>
+          <PushToggle />
+          <button className={styles.refresh} onClick={loadConversations} title="רענון">
+            <RefreshCw size={18} />
+          </button>
+        </div>
       </header>
 
       {error && <div className={styles.error}><AlertTriangle size={16} /> {error}</div>}
