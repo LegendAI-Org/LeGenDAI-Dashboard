@@ -19,10 +19,12 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const limit = searchParams.get('limit') || '50';
+  // meta = המספר הרשמי החדש (התיבה הפעילה), greenapi = ארכיון המספר הישן.
+  const channel = searchParams.get('channel') || '';
 
   try {
     const res = await fetch(
-      `${CRM_API_URL}/api/noga/conversations?key=${encodeURIComponent(CRM_API_KEY)}&limit=${limit}`,
+      `${CRM_API_URL}/api/noga/conversations?key=${encodeURIComponent(CRM_API_KEY)}&limit=${limit}&channel=${encodeURIComponent(channel)}`,
       { cache: 'no-store' }
     );
     const data = await res.json();

@@ -42,14 +42,23 @@ export async function GET(request: Request) {
     phoneVariants.push('972' + cleanPhone);
   }
 
+  // meta = המספר הרשמי, greenapi = המספר הישן. NULL היסטורי נחשב greenapi, כי כל
+  // ההודעות שלפני הוספת העמודה הגיעו מהמספר הישן או תויגו ב-backfill.
+  const channel = searchParams.get('channel');
+
   try {
     // Query all phone formats at once to fetch both inbound and outbound messages
-    const { data, error } = await supabase
+    let query = supabase
       .from('whatsapp_messages')
       .select('*')
       .in('lead_phone', phoneVariants)
-      .eq('deleted_for_me', false)
-      .order('created_at', { ascending: true });
+      .eq('deleted_for_me', false);
+    if (channel === 'meta') {
+      query = query.eq('channel', 'meta');
+    } else if (channel === 'greenapi') {
+      query = query.or('channel.is.null,channel.eq.greenapi');
+    }
+    const { data, error } = await query.order('created_at', { ascending: true });
 
     if (error) throw error;
     const rows = data || [];

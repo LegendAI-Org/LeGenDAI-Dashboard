@@ -10,6 +10,10 @@ import { createClient } from '@/utils/supabase/server'
 const USERNAME_TO_EMAIL: Record<string, string> = {
   'nogamaivar': 'noga@financialbreathing.com',
   'noga meivar': 'noga@financialbreathing.com',
+  // לייה — חשבון נפרד, כדי שאפשר יהיה לנתק אותו בלי להחליף את הסיסמה של כולם.
+  // המשתמש עצמו נוצר ידנית ב-Supabase Auth עם בדיוק האימייל הזה.
+  'liya': 'liya@financialbreathing.com',
+  'lia': 'liya@financialbreathing.com',
 }
 
 export async function login(formData: FormData) {
