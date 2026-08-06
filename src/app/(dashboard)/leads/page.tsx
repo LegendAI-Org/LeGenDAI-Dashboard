@@ -3,7 +3,9 @@ import { Users } from 'lucide-react';
 
 export default function LeadsPage() {
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    // minWidth:0 הוא מה שמאפשר לילד גמיש להתכווץ. בלעדיו הטבלה הרחבה מותחת את
+    // העמוד מעבר לרוחב המסך, וסרגל הניווט התחתון נחתך יחד איתו.
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minWidth: 0, maxWidth: '100%' }}>
       <header style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <div style={{
           width: '48px', height: '48px', borderRadius: '12px',
@@ -19,7 +21,7 @@ export default function LeadsPage() {
         </div>
       </header>
 
-      <div className="glass-panel" style={{ padding: '1.5rem', minHeight: '600px' }}>
+      <div className="glass-panel" style={{ padding: '1.5rem', minHeight: '600px', minWidth: 0, maxWidth: '100%' }}>
         <LeadsTable />
       </div>
     </div>

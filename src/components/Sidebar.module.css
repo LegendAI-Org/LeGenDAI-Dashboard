@@ -154,7 +154,11 @@
 
 @media (max-width: 768px) {
   .sidebar {
-    width: 100%;
+    /* inset במקום width:100%: רוחב אחוזי נמדד מול בלוק ההכלה, ובעמוד שיש בו תוכן
+       רחב מהמסך (טבלת הלידים) הבר יצא מהמסך ופריטים נחתכו. הצמדה לשני הקצוות
+       נותנת בדיוק את רוחב החלון תמיד. */
+    inset-inline: 0;
+    width: auto;
     height: 70px;
     bottom: 0;
     top: auto;
@@ -166,6 +170,9 @@
     border-top: 1px solid var(--glass-border);
     box-shadow: 0 -4px 24px rgba(0,0,0,0.1);
     z-index: 1000;
+    /* הזכוכית שקופה למחצה, ובלי צבע בסיס שורות הטבלה נראו דרך הבר. */
+    background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+    overflow: hidden;
   }
   
   .logoContainer, .footer, .divider, .sectionTitle {
@@ -181,15 +188,22 @@
   
   .navItem {
     flex-direction: column;
-    padding: 0.5rem;
+    padding: 0.5rem 0.25rem;
     font-size: 0.7rem;
     gap: 0.25rem;
     color: var(--text-secondary);
+    /* ארבעה פריטים חייבים להיכנס לכל רוחב מסך. בלי flex-basis אפס וללא
+       min-width:0 התוויות מסרבות להתכווץ ודוחפות את הבר אל מחוץ למסך. */
+    flex: 1 1 0;
+    min-width: 0;
   }
-  
+
   .navItem span {
     font-size: 0.65rem;
     white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .navItem:hover:not(.disabled) {

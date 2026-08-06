@@ -42,6 +42,11 @@
 
 .tableWrapper {
   overflow-x: auto;
+  /* הגלילה האופקית חייבת להישאר בתוך הקופסה הזו. בלי max-width הטבלה מרחיבה את
+     ההורה, הדף עצמו נגלל לצדדים, וסרגל הניווט התחתון נחתך. */
+  max-width: 100%;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
   border-radius: var(--border-radius-md);
   border: 1px solid var(--glass-border);
   background: rgba(0, 0, 0, 0.2);

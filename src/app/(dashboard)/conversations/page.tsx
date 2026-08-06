@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
-import { MessageSquare, RefreshCw, Send, AlertTriangle, ChevronRight } from 'lucide-react';
+import { MessageSquare, RefreshCw, Send, AlertTriangle, ChevronRight, Check, Undo2, FileText } from 'lucide-react';
 import PushToggle from '@/components/PushToggle';
 import styles from './page.module.css';
 
@@ -18,7 +18,10 @@ type Conversation = {
   messages: number;
   window_open: boolean;
   needs_reply: boolean;
+  dismissed?: boolean;
 };
+
+type ManualTemplate = { name: string; label: string; preview: string };
 
 type Message = {
   id: number | string;
@@ -81,6 +84,8 @@ export default function ConversationsPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [pickerFor, setPickerFor] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<ManualTemplate[]>([]);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const prevMsgCount = useRef(0);
   const lastTypingSent = useRef(0);
@@ -114,6 +119,16 @@ export default function ConversationsPage() {
     const t = setInterval(loadConversations, POLL_MS);
     return () => clearInterval(t);
   }, [loadConversations]);
+
+  // The allowed list is short and never changes during a session, so fetch it once.
+  // Failing quietly is right: the picker simply does not appear, and the rest of the
+  // page keeps working.
+  useEffect(() => {
+    fetch('/api/whatsapp/template')
+      .then(r => r.json())
+      .then(d => setTemplates(d?.templates || []))
+      .catch(() => {});
+  }, []);
 
   // Tapping a push notification lands here with ?phone=…: open that thread straight away,
   // otherwise the alert only gets Liya to the list and she still has to hunt for the lead.
@@ -179,6 +194,51 @@ export default function ConversationsPage() {
     }
   };
 
+  // Clears the red "waiting" flag without answering — some conversations genuinely need
+  // no reply, and leaving them lit makes the whole list stop meaning anything. The CRM
+  // stores a timestamp, so a newer message from the same person lights it up again.
+  const dismiss = async (conv: Conversation, undo = false) => {
+    setConversations(cs => cs.map(c =>
+      c.phone === conv.phone ? { ...c, needs_reply: undo, dismissed: !undo } : c));
+    try {
+      const res = await fetch('/api/whatsapp/dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: conv.phone, undo }),
+      });
+      if (!res.ok) throw new Error((await res.json())?.error || 'הפעולה נכשלה');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'הפעולה נכשלה');
+      loadConversations();   // the optimistic row was wrong — resync
+    }
+  };
+
+  const sendTemplate = async (name: string) => {
+    if (!selected || sending) return;
+    setSending(true);
+    setTemplateOpen(false);
+    try {
+      const res = await fetch('/api/whatsapp/template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: selected.phone, template: name,
+          firstName: (selected.name || '').split(' ')[0],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data?.status !== 'sent') {
+        throw new Error(data?.error || data?.detail || 'שליחת התבנית נכשלה');
+      }
+      await loadThread(selected.phone);
+      loadConversations();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'שליחת התבנית נכשלה');
+    } finally {
+      setSending(false);
+    }
+  };
+
   // Reactions are stored as their own rows carrying the target's wamid; fold them
   // into a map (last one wins, like WhatsApp) and keep only real bubbles in the list.
   const reactionsByTarget = new Map<string, string>();
@@ -227,7 +287,7 @@ export default function ConversationsPage() {
   return (
     <div className={styles.page} dir="rtl">
       <header className={styles.header}>
-        <div>
+        <div className={styles.headerText}>
           <h1 className={styles.title}>
             <MessageSquare size={22} /> שיחות וואטסאפ
           </h1>
@@ -260,24 +320,49 @@ export default function ConversationsPage() {
             <div className={styles.empty}>עדיין אין שיחות במספר החדש</div>
           )}
           {conversations.map(c => (
-            <button
+            // עטיפה ולא כפתור אחד: כפתור "סימון כטופל" חייב להיות אח ולא צאצא —
+            // כפתור בתוך כפתור אינו HTML תקין ודפדפנים מתעלמים מהלחיצה הפנימית.
+            <div
               key={c.phone}
-              onClick={() => setSelected(c)}
-              className={`${styles.item} ${selected?.phone === c.phone ? styles.itemActive : ''}`}
+              className={`${styles.itemWrap} ${selected?.phone === c.phone ? styles.itemActive : ''}`}
             >
-              <div className={styles.itemTop}>
-                <span className={styles.itemNameWrap}>
-                  {c.needs_reply && <span className={styles.dot} />}
-                  <span className={styles.itemName}>{c.name || localPhone(c.phone)}</span>
-                </span>
-                <span className={styles.itemTime}>{timeLabel(c.last_at)}</span>
-              </div>
-              <div className={styles.itemPreview}>
-                {c.last_direction === 'outbound' && <span className={styles.you}>את: </span>}
-                {c.last_body}
-              </div>
-              {c.needs_reply && <span className={styles.badge}>ממתין לתשובה</span>}
-            </button>
+              <button onClick={() => setSelected(c)} className={styles.item}>
+                <div className={styles.itemTop}>
+                  <span className={styles.itemNameWrap}>
+                    {c.needs_reply && <span className={styles.dot} />}
+                    <span className={styles.itemName}>{c.name || localPhone(c.phone)}</span>
+                  </span>
+                  <span className={styles.itemTime}>{timeLabel(c.last_at)}</span>
+                </div>
+                <div className={styles.itemPreview}>
+                  {c.last_direction === 'outbound' && <span className={styles.you}>את: </span>}
+                  {c.last_body}
+                </div>
+                {c.needs_reply && <span className={styles.badge}>ממתין לתשובה</span>}
+                {!c.needs_reply && c.dismissed && (
+                  <span className={styles.badgeMuted}>סומן כטופל</span>
+                )}
+              </button>
+              {c.needs_reply ? (
+                <button
+                  className={styles.dismissBtn}
+                  onClick={() => dismiss(c)}
+                  title="סימון כטופל — מסיר את החיווי בלי לענות"
+                  aria-label="סימון כטופל"
+                >
+                  <Check size={15} />
+                </button>
+              ) : c.dismissed && (
+                <button
+                  className={styles.dismissBtn}
+                  onClick={() => dismiss(c, true)}
+                  title="ביטול הסימון"
+                  aria-label="ביטול הסימון"
+                >
+                  <Undo2 size={15} />
+                </button>
+              )}
+            </div>
           ))}
         </aside>
 
@@ -366,9 +451,39 @@ export default function ConversationsPage() {
                   </button>
                 </div>
               ) : (
-                <div className={styles.closedWindow}>
-                  <AlertTriangle size={16} />
-                  חלון 24 השעות נסגר. אי אפשר לכתוב הודעה חופשית עד שהאדם יכתוב שוב.
+                <div className={styles.closedWrap}>
+                  <div className={styles.closedWindow}>
+                    <AlertTriangle size={16} />
+                    חלון 24 השעות נסגר. אפשר לשלוח תבנית מאושרת, וברגע שיענו החלון ייפתח מחדש.
+                  </div>
+                  {templates.length > 0 && (
+                    <>
+                      <button
+                        className={styles.templateBtn}
+                        onClick={() => setTemplateOpen(o => !o)}
+                        disabled={sending}
+                      >
+                        <FileText size={16} />
+                        {sending ? 'שולח…' : 'שליחת תבנית'}
+                      </button>
+                      {templateOpen && (
+                        <div className={styles.templateList}>
+                          {templates.map(t => (
+                            <button
+                              key={t.name}
+                              className={styles.templateItem}
+                              onClick={() => sendTemplate(t.name)}
+                            >
+                              <span className={styles.templateLabel}>{t.label}</span>
+                              <span className={styles.templatePreview}>
+                                {t.preview.replace('{שם}', (selected.name || '').split(' ')[0] || 'שלום')}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </>
