@@ -254,7 +254,17 @@ export default function LeadsTable() {
                 </tr>
                 {selectedLead?.id === lead.id && (
                   <tr>
-                    <td colSpan={6} style={{ padding: 0, borderBottom: '1px solid var(--glass-border)' }}>
+                    {/* פרטי הליד נפתחים בתוך תא בטבלה, ולכן הרוחב שלהם נדחף לרוחב
+                        הטבלה כולה. הצמדה ל-100vw מונעת מהם למתוח את העמוד במובייל. */}
+                    <td
+                      colSpan={6}
+                      style={{
+                        padding: 0,
+                        borderBottom: '1px solid var(--glass-border)',
+                        maxWidth: '100vw',
+                        overflow: 'hidden',
+                      }}
+                    >
                       <LeadModal
                         lead={selectedLead}
                         onClose={() => setSelectedLead(null)}

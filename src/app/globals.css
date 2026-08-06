@@ -50,12 +50,21 @@
   font-family: 'Rubik', 'Outfit', sans-serif;
 }
 
+/* overflow-x חייב לשבת גם על html ולא רק על body. בכרום אנדרואיד הגלילה האופקית
+   מתרחשת על אלמנט השורש, ולכן body לבדו לא עצר אותה: טבלת הלידים הרחבה גלגלה את
+   העמוד לצדדים, וסרגל הניווט ה-fixed נעלם וחזר שבור בזמן גלילה. */
+html {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
   min-height: 100vh;
   overflow-x: hidden;
+  max-width: 100%;
   line-height: 1.6;
 }
 
@@ -170,6 +179,10 @@ a {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  /* min-width:0 הוא מה שמתיר לילד גמיש להתכווץ מתחת לרוחב התוכן שלו. בלעדיו טבלה
+     רחבה מרחיבה את המכל במקום לגלול בתוך עצמה. */
+  min-width: 0;
+  max-width: 100%;
 }
 
 @keyframes floatMobile {

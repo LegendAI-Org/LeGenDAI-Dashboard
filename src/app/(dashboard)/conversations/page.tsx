@@ -86,6 +86,7 @@ export default function ConversationsPage() {
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [templates, setTemplates] = useState<ManualTemplate[]>([]);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [onlyWaiting, setOnlyWaiting] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const prevMsgCount = useRef(0);
   const lastTypingSent = useRef(0);
@@ -283,6 +284,9 @@ export default function ConversationsPage() {
   };
 
   const waiting = conversations.filter(c => c.needs_reply).length;
+  const visibleConversations = onlyWaiting
+    ? conversations.filter(c => c.needs_reply)
+    : conversations;
 
   return (
     <div className={styles.page} dir="rtl">
@@ -291,10 +295,19 @@ export default function ConversationsPage() {
           <h1 className={styles.title}>
             <MessageSquare size={22} /> שיחות וואטסאפ
           </h1>
-          <p className={`${styles.subtitle} ${waiting > 0 ? styles.subtitleAlert : ''}`}>
+          {/* המונה הוא גם המסנן: הוא כבר מספר כמה שיחות דורשות טיפול, ולחיצה עליו
+              מצמצמת את הרשימה בדיוק אליהן. כפתור נפרד היה חוזר על אותו מידע. */}
+          <button
+            type="button"
+            onClick={() => waiting > 0 && setOnlyWaiting(v => !v)}
+            disabled={waiting === 0}
+            className={`${styles.subtitle} ${waiting > 0 ? styles.subtitleAlert : ''} ${onlyWaiting ? styles.filterOn : ''}`}
+          >
             {waiting > 0 && <span className={styles.dot} />}
-            {waiting > 0 ? ` ${waiting} שיחות ממתינות לתשובה` : 'אין שיחות שממתינות לתשובה'}
-          </p>
+            {waiting > 0
+              ? (onlyWaiting ? ` מציג ${waiting} ממתינות — להצגת הכל` : ` ${waiting} שיחות ממתינות לתשובה`)
+              : 'אין שיחות שממתינות לתשובה'}
+          </button>
         </div>
         <div className={styles.headerActions}>
           <PushToggle />
@@ -307,19 +320,25 @@ export default function ConversationsPage() {
       {error && <div className={styles.error}><AlertTriangle size={16} /> {error}</div>}
 
       {waiting > 0 && !selected && (
-        <div className={styles.waitingBar}>
+        <button
+          type="button"
+          className={`${styles.waitingBar} ${onlyWaiting ? styles.filterOn : ''}`}
+          onClick={() => setOnlyWaiting(v => !v)}
+        >
           <span className={styles.dot} />
-          {waiting} שיחות ממתינות לתשובה
-        </div>
+          {onlyWaiting ? `מציג ${waiting} ממתינות — להצגת הכל` : `${waiting} שיחות ממתינות לתשובה`}
+        </button>
       )}
 
       <div className={`${styles.layout} ${selected ? styles.threadOpen : ''}`}>
         <aside className={styles.list}>
           {loadingList && <div className={styles.empty}>טוען שיחות…</div>}
-          {!loadingList && conversations.length === 0 && (
-            <div className={styles.empty}>עדיין אין שיחות במספר החדש</div>
+          {!loadingList && visibleConversations.length === 0 && (
+            <div className={styles.empty}>
+              {onlyWaiting ? 'אין שיחות שממתינות לתשובה' : 'עדיין אין שיחות במספר החדש'}
+            </div>
           )}
-          {conversations.map(c => (
+          {visibleConversations.map(c => (
             // עטיפה ולא כפתור אחד: כפתור "סימון כטופל" חייב להיות אח ולא צאצא —
             // כפתור בתוך כפתור אינו HTML תקין ודפדפנים מתעלמים מהלחיצה הפנימית.
             <div
