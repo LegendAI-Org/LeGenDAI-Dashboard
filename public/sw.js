@@ -39,6 +39,10 @@ self.addEventListener('push', (event) => {
     vibrate: [80, 40, 80],
     dir: 'rtl',
     lang: 'he',
+    // במחשב באנר נעלם מעצמו אחרי כמה שניות, ולייה שלא הסתכלה על המסך באותו רגע
+    // פשוט מפספסת את הליד. requireInteraction משאיר אותו עד לחיצה. בנייד המערכת
+    // מתעלמת מהדגל וההתנהגות נשארת כשהייתה, ולכן זה בטוח לשני העולמות.
+    requireInteraction: true,
     data: { url: data.url || '/conversations' },
   };
 
