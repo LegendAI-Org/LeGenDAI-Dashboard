@@ -549,3 +549,16 @@
   .headerText { display: none; }
   .waitingBar { display: flex; }
 }
+
+/* ממתין למענה אנושי — בחירה 3/4 בתפריט. גוון נפרד מ"ממתין לתשובה" הרגיל, כי אלה
+   שתי מציאויות שונות: כאן כבר יצאה תשובה אוטומטית, ומה שחסר הוא שיחה עם אדם. */
+.badgeHuman {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--warning) 20%, transparent);
+  color: var(--warning);
+}

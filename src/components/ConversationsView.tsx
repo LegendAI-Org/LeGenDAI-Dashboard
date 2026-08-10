@@ -19,6 +19,8 @@ type Conversation = {
   window_open: boolean;
   needs_reply: boolean;
   dismissed?: boolean;
+  /** מה הוא ביקש, כשהשיחה ממתינה למענה אנושי (בחירה 3/4). null = לא ממתינה. */
+  needs_human?: string | null;
 };
 
 type ManualTemplate = { name: string; label: string; preview: string };
@@ -366,7 +368,13 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
                   {c.last_direction === 'outbound' && <span className={styles.you}>את: </span>}
                   {c.last_body}
                 </div>
-                {c.needs_reply && <span className={styles.badge}>ממתין לתשובה</span>}
+                {c.needs_human ? (
+                  // תווית ספציפית ולא "ממתין לתשובה" גנרי: השיחה הזו כבר קיבלה מענה
+                  // אוטומטי, ומה שנשאר הוא בדיוק מה שהוא ביקש שיחזרו אליו עליו.
+                  <span className={styles.badgeHuman}>{c.needs_human}</span>
+                ) : c.needs_reply ? (
+                  <span className={styles.badge}>ממתין לתשובה</span>
+                ) : null}
                 {!c.needs_reply && c.dismissed && (
                   <span className={styles.badgeMuted}>סומן כטופל</span>
                 )}
