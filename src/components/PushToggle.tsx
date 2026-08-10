@@ -41,6 +41,14 @@ export default function PushToggle() {
     return navigator.serviceWorker.register('/sw.js', { scope: '/' });
   }, []);
 
+  // ההודעה יושבת מעל תיבת הכתיבה, ולכן היא נעלמת מעצמה. קודם היא נשארה עד לחיצה
+  // וחסמה את הכתיבה ללייה בלי שהיה ברור שצריך ללחוץ עליה כדי להיפטר ממנה.
+  useEffect(() => {
+    if (!note) return;
+    const t = setTimeout(() => setNote(''), 6000);
+    return () => clearTimeout(t);
+  }, [note]);
+
   // Re-send the stored subscription on every load. Browsers quietly reissue endpoints,
   // and a stale row in the database looks identical to a working one until a real lead
   // writes in and nothing rings.
@@ -111,8 +119,9 @@ export default function PushToggle() {
         setNote('ההרשמה להתראות נכשלה בשרת.');
         return;
       }
+      // בלי הודעת הצלחה: הפעמון שמשנה צבע כבר אומר את זה, וההודעה ישבה מעל תיבת
+      // הכתיבה עד שלחצו עליה — כלומר חסמה בדיוק את מה שהמסך הזה נועד לו.
       setState('on');
-      setNote('התראות פעילות במכשיר הזה. אפשר ללחוץ על הפעמון לשליחת בדיקה.');
     } catch (e) {
       setNote(`ההרשמה נכשלה: ${e instanceof Error ? e.message : 'שגיאה לא ידועה'}`);
     } finally {
