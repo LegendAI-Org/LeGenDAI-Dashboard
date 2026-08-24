@@ -242,6 +242,30 @@
   background: color-mix(in srgb, var(--danger) 22%, transparent);
 }
 
+/* בורר התצוגה: "כתבו לנו" (ברירת מחדל) מול "הכל" — מפריד את מי שבאמת שלח
+   הודעה מהצפת שיחות של גל יוצא. */
+.viewChips {
+  display: flex;
+  gap: 8px;
+}
+
+.chip, .chipOn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chipOn {
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
 .thread {
   display: flex;
   flex-direction: column;

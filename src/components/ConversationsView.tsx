@@ -15,6 +15,8 @@ type Conversation = {
   last_body: string;
   last_direction: string;
   last_at: string;
+  /** null = מעולם לא כתב/ה לנו (שיחה שנפתחה רק בהודעה יוצאת, למשל גל). */
+  last_inbound_at?: string | null;
   messages: number;
   window_open: boolean;
   needs_reply: boolean;
@@ -102,7 +104,11 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [templates, setTemplates] = useState<ManualTemplate[]>([]);
   const [templateOpen, setTemplateOpen] = useState(false);
-  const [onlyWaiting, setOnlyWaiting] = useState(false);
+  // 24/08: גל של 200 הודעות יוצאות יצר 200 שיחות "יוצאת-בלבד" שהציפו את הרשימה,
+  // ונגה לא מצאה את מי שבאמת כתב. ברירת המחדל היא לכן "כתבו לנו" — רק שיחות עם
+  // לפחות הודעה נכנסת אחת; "הכל" קיים כצ'יפ ליד זה.
+  const [view, setView] = useState<'waiting' | 'inbound' | 'all'>('inbound');
+  const onlyWaiting = view === 'waiting';
   const threadRef = useRef<HTMLDivElement>(null);
   const prevMsgCount = useRef(0);
   const lastTypingSent = useRef(0);
@@ -315,8 +321,10 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
   };
 
   const waiting = conversations.filter(c => c.needs_reply).length;
-  const visibleConversations = onlyWaiting
-    ? conversations.filter(c => c.needs_reply)
+  const wrote = conversations.filter(c => !!c.last_inbound_at);
+  const visibleConversations =
+    view === 'waiting' ? conversations.filter(c => c.needs_reply)
+    : view === 'inbound' ? wrote
     : conversations;
 
   return (
@@ -330,7 +338,7 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
               מצמצמת את הרשימה בדיוק אליהן. כפתור נפרד היה חוזר על אותו מידע. */}
           <button
             type="button"
-            onClick={() => waiting > 0 && setOnlyWaiting(v => !v)}
+            onClick={() => waiting > 0 && setView(v => v === 'waiting' ? 'inbound' : 'waiting')}
             disabled={waiting === 0}
             className={`${styles.subtitle} ${waiting > 0 ? styles.subtitleAlert : ''} ${onlyWaiting ? styles.filterOn : ''}`}
           >
@@ -354,11 +362,30 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
         <button
           type="button"
           className={`${styles.waitingBar} ${onlyWaiting ? styles.filterOn : ''}`}
-          onClick={() => setOnlyWaiting(v => !v)}
+          onClick={() => setView(v => v === 'waiting' ? 'inbound' : 'waiting')}
         >
           <span className={styles.dot} />
           {onlyWaiting ? `מציג ${waiting} ממתינות — להצגת הכל` : `${waiting} שיחות ממתינות לתשובה`}
         </button>
+      )}
+
+      {!selected && (
+        <div className={styles.viewChips}>
+          <button
+            type="button"
+            className={view === 'inbound' ? styles.chipOn : styles.chip}
+            onClick={() => setView('inbound')}
+          >
+            כתבו לנו ({wrote.length})
+          </button>
+          <button
+            type="button"
+            className={view === 'all' ? styles.chipOn : styles.chip}
+            onClick={() => setView('all')}
+          >
+            הכל ({conversations.length})
+          </button>
+        </div>
       )}
 
       <div className={`${styles.layout} ${selected ? styles.threadOpen : ''}`}>
@@ -366,7 +393,9 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
           {loadingList && <div className={styles.empty}>טוען שיחות…</div>}
           {!loadingList && visibleConversations.length === 0 && (
             <div className={styles.empty}>
-              {onlyWaiting ? 'אין שיחות שממתינות לתשובה' : 'עדיין אין שיחות במספר החדש'}
+              {view === 'waiting' ? 'אין שיחות שממתינות לתשובה'
+                : view === 'inbound' ? 'עוד לא כתבו לנו — "הכל" מציג גם את מי שרק קיבל הודעה'
+                : 'עדיין אין שיחות במספר החדש'}
             </div>
           )}
           {visibleConversations.map(c => (
