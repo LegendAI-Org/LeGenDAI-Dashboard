@@ -39,6 +39,9 @@ type Message = {
 const POLL_MS = 3000;
 // תקרה לבקשה בודדת. בלעדיה בקשה תקועה ברשת חלשה לא נכשלת ולא מסתיימת לעולם.
 const REQUEST_TIMEOUT_MS = 15000;
+// ה-route נופל ל-50 כשלא מבקשים, וזה הסתיר שיחות שלמות ביום עמוס:
+// גל של 50 הודעות מילא את כל הרשימה ודחף החוצה את מי שחיכה לתשובה מאתמול.
+const LIST_LIMIT = 300;
 
 // The small palette offered when reacting to a lead's message (WhatsApp long-press).
 const REACTION_EMOJIS = ['👍', '❤️', '😊', '🙏', '✅'];
@@ -116,7 +119,7 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), REQUEST_TIMEOUT_MS);
     try {
-      const res = await fetch(`/api/whatsapp/conversations?channel=${channel}&_ts=${Date.now()}`,
+      const res = await fetch(`/api/whatsapp/conversations?channel=${channel}&limit=${LIST_LIMIT}&_ts=${Date.now()}`,
         { cache: 'no-store', signal: ctl.signal });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'שגיאה בטעינת השיחות');
