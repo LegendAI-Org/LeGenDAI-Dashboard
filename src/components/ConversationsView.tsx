@@ -37,6 +37,8 @@ type Message = {
 };
 
 const POLL_MS = 3000;
+// תקרה לבקשה בודדת. בלעדיה בקשה תקועה ברשת חלשה לא נכשלת ולא מסתיימת לעולם.
+const REQUEST_TIMEOUT_MS = 15000;
 
 // The small palette offered when reacting to a lead's message (WhatsApp long-press).
 const REACTION_EMOJIS = ['👍', '❤️', '😊', '🙏', '✅'];
@@ -102,16 +104,31 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
   const prevMsgCount = useRef(0);
   const lastTypingSent = useRef(0);
 
+  // fetch לא נכשל לבד כשהרשת נתקעת — הוא פשוט תלוי לנצח, ואז ה-finally לא רץ
+  // וה"טוען שיחות…" נשאר על המסך בלי שום דרך לצאת ממנו. קרה לנגה בנייד ב-24/08.
+  // AbortController הופך תקיעה לשגיאה גלויה, וממנה הפולינג מתאושש לבד.
+  const inFlight = useRef(false);
   const loadConversations = useCallback(async () => {
+    // הפולינג הוא כל 3 שניות ולא מחכה לתשובה. ברשת סלולרית איטית הבקשות
+    // נערמות מהר יותר משהן חוזרות, ולכן מדלגים כשיש אחת באוויר.
+    if (inFlight.current) return;
+    inFlight.current = true;
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), REQUEST_TIMEOUT_MS);
     try {
-      const res = await fetch(`/api/whatsapp/conversations?channel=${channel}&_ts=${Date.now()}`, { cache: 'no-store' });
+      const res = await fetch(`/api/whatsapp/conversations?channel=${channel}&_ts=${Date.now()}`,
+        { cache: 'no-store', signal: ctl.signal });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'שגיאה בטעינת השיחות');
       setConversations(data.conversations || []);
       setError('');
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'שגיאה בטעינת השיחות');
+      const aborted = e instanceof DOMException && e.name === 'AbortError';
+      setError(aborted ? 'החיבור איטי או נותק. מנסים שוב…'
+                       : e instanceof Error ? e.message : 'שגיאה בטעינת השיחות');
     } finally {
+      clearTimeout(timer);
+      inFlight.current = false;
       setLoadingList(false);
     }
   }, [channel]);
