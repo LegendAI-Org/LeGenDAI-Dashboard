@@ -243,10 +243,45 @@
 }
 
 /* בורר התצוגה: "כתבו לנו" (ברירת מחדל) מול "הכל" — מפריד את מי שבאמת שלח
-   הודעה מהצפת שיחות של גל יוצא. */
+   הודעה מהצפת שיחות של גל יוצא. שדה החיפוש חי באותה שורה. */
 .viewChips {
   display: flex;
   gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.searchBox {
+  position: relative;
+  flex: 1;
+  min-width: 180px;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 8px 12px;
+  padding-inline-end: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.searchInput:focus { outline: 2px solid var(--accent-glow); }
+
+.searchClear {
+  position: absolute;
+  inset-inline-end: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px;
 }
 
 .chip, .chipOn {

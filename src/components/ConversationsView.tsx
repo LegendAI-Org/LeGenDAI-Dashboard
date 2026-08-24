@@ -109,6 +109,9 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
   // לפחות הודעה נכנסת אחת; "הכל" קיים כצ'יפ ליד זה.
   const [view, setView] = useState<'waiting' | 'inbound' | 'all'>('inbound');
   const onlyWaiting = view === 'waiting';
+  // חיפוש חי לפי שם או טלפון. חיפוש פעיל עוקף את בורר התצוגה בכוונה: לייה מחפשת
+  // מספר מרשימת ה-30 — שיחה כזו היא לרוב יוצאת-בלבד ומוסתרת בתצוגת "כתבו לנו".
+  const [search, setSearch] = useState('');
   const threadRef = useRef<HTMLDivElement>(null);
   const prevMsgCount = useRef(0);
   const lastTypingSent = useRef(0);
@@ -322,8 +325,13 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
 
   const waiting = conversations.filter(c => c.needs_reply).length;
   const wrote = conversations.filter(c => !!c.last_inbound_at);
-  const visibleConversations =
-    view === 'waiting' ? conversations.filter(c => c.needs_reply)
+  const query = search.trim().toLowerCase();
+  const queryDigits = query.replace(/\D/g, '').replace(/^(972|0)/, '');
+  const visibleConversations = query
+    ? conversations.filter(c =>
+        (c.name || '').toLowerCase().includes(query) ||
+        (queryDigits !== '' && c.phone.includes(queryDigits)))
+    : view === 'waiting' ? conversations.filter(c => c.needs_reply)
     : view === 'inbound' ? wrote
     : conversations;
 
@@ -371,17 +379,32 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
 
       {!selected && (
         <div className={styles.viewChips}>
+          <div className={styles.searchBox}>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="חיפוש לפי שם או טלפון…"
+              className={styles.searchInput}
+              dir="rtl"
+            />
+            {search && (
+              <button type="button" className={styles.searchClear} onClick={() => setSearch('')} aria-label="ניקוי חיפוש">
+                ✕
+              </button>
+            )}
+          </div>
           <button
             type="button"
-            className={view === 'inbound' ? styles.chipOn : styles.chip}
-            onClick={() => setView('inbound')}
+            className={view === 'inbound' && !query ? styles.chipOn : styles.chip}
+            onClick={() => { setSearch(''); setView('inbound'); }}
           >
             כתבו לנו ({wrote.length})
           </button>
           <button
             type="button"
-            className={view === 'all' ? styles.chipOn : styles.chip}
-            onClick={() => setView('all')}
+            className={view === 'all' && !query ? styles.chipOn : styles.chip}
+            onClick={() => { setSearch(''); setView('all'); }}
           >
             הכל ({conversations.length})
           </button>
@@ -393,7 +416,8 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
           {loadingList && <div className={styles.empty}>טוען שיחות…</div>}
           {!loadingList && visibleConversations.length === 0 && (
             <div className={styles.empty}>
-              {view === 'waiting' ? 'אין שיחות שממתינות לתשובה'
+              {query ? 'לא נמצאו תוצאות — נסי שם אחר או ספרות מהטלפון'
+                : view === 'waiting' ? 'אין שיחות שממתינות לתשובה'
                 : view === 'inbound' ? 'עוד לא כתבו לנו — "הכל" מציג גם את מי שרק קיבל הודעה'
                 : 'עדיין אין שיחות במספר החדש'}
             </div>
