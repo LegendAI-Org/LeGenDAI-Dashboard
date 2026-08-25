@@ -14,8 +14,10 @@ export async function GET(request: Request) {
     const res = await fetch(
       `${CRM}/api/noga/call-queue?key=${encodeURIComponent(KEY)}&include_called=${includeCalled}`,
       { cache: 'no-store' });
-    const data = await res.json();
-    if (!res.ok) return NextResponse.json({ error: data?.detail || 'CRM request failed' }, { status: res.status });
+    // ה-CRM עשוי להחזיר 500 בלי גוף JSON. בלי ה-catch הזה res.json() זורק,
+    // והמשתמש רואה "Unexpected token I" במקום מה שבאמת קרה.
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return NextResponse.json({ error: data?.detail || `CRM request failed (${res.status})` }, { status: res.status });
     return NextResponse.json(data);
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'unknown error' }, { status: 502 });
