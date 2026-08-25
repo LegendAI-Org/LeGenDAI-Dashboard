@@ -116,21 +116,39 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
   const prevMsgCount = useRef(0);
   const lastTypingSent = useRef(0);
 
-  // fetch לא נכשל לבד כשהרשת נתקעת — הוא פשוט תלוי לנצח, ואז ה-finally לא רץ
-  // וה"טוען שיחות…" נשאר על המסך בלי שום דרך לצאת ממנו. קרה לנגה בנייד ב-24/08.
-  // AbortController הופך תקיעה לשגיאה גלויה, וממנה הפולינג מתאושש לבד.
+  // 25/08, המסך התקוע של נגה: AbortController לבדו לא הספיק. ב-iOS, כשאפליקציה
+  // במסך הבית חוזרת מהרקע או שהרשת מתחלפת, יש fetch שנשאר תלוי לנצח ו-abort()
+  // לא דוחה אותו. אם ה-finally תלוי בהבטחה הזאת הוא לא רץ, inFlight נשאר true,
+  // כל פולינג הבא יוצא מיד בשורה הראשונה, ו"טוען שיחות…" נשאר על המסך לנצח —
+  // בלי שום שגיאה, כי גם ה-catch לא רץ. שלוש הגנות בלתי תלויות מכאן:
+  //   1. Promise.race מול טיימר. הטיימר תמיד מסתיים, גם אם ה-fetch לא.
+  //   2. שומר סף בפולינג: בקשה תקועה מעל 30 שניות מבוטלת בכוח.
+  //   3. כל חזרה לחזית מאפסת ומרעננת, כי בזמן ההקפאה גם הטיימרים קפואים.
   const inFlight = useRef(false);
+  const inFlightSince = useRef(0);
   const loadConversations = useCallback(async () => {
     // הפולינג הוא כל 3 שניות ולא מחכה לתשובה. ברשת סלולרית איטית הבקשות
     // נערמות מהר יותר משהן חוזרות, ולכן מדלגים כשיש אחת באוויר.
     if (inFlight.current) return;
     inFlight.current = true;
+    inFlightSince.current = Date.now();
     const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), REQUEST_TIMEOUT_MS);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // ה-race הזה, ולא ה-signal, הוא מה שמבטיח שה-finally ירוץ.
+    const expired = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        ctl.abort();
+        reject(new DOMException('timeout', 'AbortError'));
+      }, REQUEST_TIMEOUT_MS);
+    });
     try {
-      const res = await fetch(`/api/whatsapp/conversations?channel=${channel}&limit=${LIST_LIMIT}&_ts=${Date.now()}`,
-        { cache: 'no-store', signal: ctl.signal });
-      const data = await res.json();
+      const res = await Promise.race([
+        fetch(`/api/whatsapp/conversations?channel=${channel}&limit=${LIST_LIMIT}&_ts=${Date.now()}`,
+          { cache: 'no-store', signal: ctl.signal }),
+        expired,
+      ]);
+      // גם קריאת הגוף נתקעת באותו תרחיש, ולכן היא מרוצה מול אותו טיימר.
+      const data = await Promise.race([res.json(), expired]);
       if (!res.ok) throw new Error(data?.error || 'שגיאה בטעינת השיחות');
       setConversations(data.conversations || []);
       setError('');
@@ -139,7 +157,7 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
       setError(aborted ? 'החיבור איטי או נותק. מנסים שוב…'
                        : e instanceof Error ? e.message : 'שגיאה בטעינת השיחות');
     } finally {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       inFlight.current = false;
       setLoadingList(false);
     }
@@ -157,8 +175,38 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
 
   useEffect(() => {
     loadConversations();
-    const t = setInterval(loadConversations, POLL_MS);
+    const t = setInterval(() => {
+      // האפליקציה ברקע: iOS מקפיא את ה-JS ממילא, וטיק שכן מצליח לרוץ רק שורף
+      // סוללה וחבילת גלישה על רשימה של רבע מגה. מרעננים כשחוזרים.
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      // שומר סף: אם בקשה תקועה יותר מפעמיים התקרה, ה-finally שלה לא ירוץ לעולם.
+      // משחררים את הדגל בכוח, אחרת המסך נעול על "טוען שיחות…" עד רענון ידני.
+      if (inFlight.current && Date.now() - inFlightSince.current > REQUEST_TIMEOUT_MS * 2) {
+        inFlight.current = false;
+        setLoadingList(false);
+        setError('החיבור נתקע. מנסים שוב…');
+      }
+      loadConversations();
+    }, POLL_MS);
     return () => clearInterval(t);
+  }, [loadConversations]);
+
+  // חזרה לחזית / חזרה של הרשת. בלי זה נגה פותחת את האפליקציה ורואה בדיוק את
+  // המסך שנתקע לפני שעה, כי כל הטיימרים היו קפואים יחד עם הבקשה.
+  useEffect(() => {
+    const revive = () => {
+      if (document.visibilityState !== 'visible') return;
+      inFlight.current = false;
+      loadConversations();
+    };
+    document.addEventListener('visibilitychange', revive);
+    window.addEventListener('focus', revive);
+    window.addEventListener('online', revive);
+    return () => {
+      document.removeEventListener('visibilitychange', revive);
+      window.removeEventListener('focus', revive);
+      window.removeEventListener('online', revive);
+    };
   }, [loadConversations]);
 
   // The allowed list is short and never changes during a session, so fetch it once.
