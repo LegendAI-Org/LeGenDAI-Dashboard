@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Users, DollarSign, UserCheck, Calendar, ChevronDown } from 'lucide-react';
 import styles from '../app/(dashboard)/summary/page.module.css';
 
@@ -35,6 +36,14 @@ export default function SummaryCards({
 
   const toggle = (key: CardKey) => setOpen(prev => (prev === key ? null : key));
   const fmtDate = (d: string) => (d ? d.slice(0, 10).split('-').reverse().join('/') : '');
+  // 25/08, בקשת איתי: לחיצה על ליד פותחת את השיחה איתו. עד עכשיו השורות האלה
+  // היו מתות — לייה ראתה שם וטלפון וצריכה הייתה לעבור לעמוד השיחות ולחפש ידנית.
+  // עמוד השיחות כבר יודע לקבל ?phone= (הוא נבנה עבור לחיצה על התראת פוש).
+  const chatHref = (phone: string) => {
+    const d = (phone || '').replace(/\D/g, '');
+    if (!d) return undefined;
+    return `/conversations?phone=${d.startsWith('972') ? d : `972${d.replace(/^0/, '')}`}`;
+  };
 
   return (
     <>
@@ -115,7 +124,7 @@ export default function SummaryCards({
           {open === 'leads' && (
             <DrillList
               title="לידים חדשים בתקופה"
-              rows={leadsList.map(l => ({ main: l.name || 'ללא שם', sub: l.phone, tag: l.status, side: fmtDate(l.date) }))}
+              rows={leadsList.map(l => ({ main: l.name || 'ללא שם', sub: l.phone, tag: l.status, side: fmtDate(l.date), href: chatHref(l.phone) }))}
               empty="אין לידים בתקופה שנבחרה"
             />
           )}
@@ -129,7 +138,7 @@ export default function SummaryCards({
           {open === 'meetings' && (
             <DrillList
               title="פגישות שנקבעו"
-              rows={meetingsList.map(m => ({ main: m.name || 'ללא שם', sub: m.phone, tag: '', side: fmtDate(m.date) }))}
+              rows={meetingsList.map(m => ({ main: m.name || 'ללא שם', sub: m.phone, tag: '', side: fmtDate(m.date), href: chatHref(m.phone) }))}
               empty="אין פגישות בתקופה שנבחרה"
             />
           )}
@@ -145,7 +154,7 @@ function DrillList({
   empty,
 }: {
   title: string;
-  rows: { main: string; sub: string; tag: string; side: string }[];
+  rows: { main: string; sub: string; tag: string; side: string; href?: string }[];
   empty: string;
 }) {
   return (
@@ -158,18 +167,29 @@ function DrillList({
         <div className={styles.emptyState}>{empty}</div>
       ) : (
         <div className={styles.drillRows}>
-          {rows.map((r, i) => (
-            <div key={i} className={styles.drillRow}>
-              <div>
-                <div className={styles.drillMain}>{r.main}</div>
-                {r.sub && <div className={styles.drillSub}>{r.sub}</div>}
-              </div>
-              <div className={styles.drillRight}>
-                {r.tag && <span className={styles.drillTag}>{r.tag}</span>}
-                {r.side && <span className={styles.drillSide}>{r.side}</span>}
-              </div>
-            </div>
-          ))}
+          {rows.map((r, i) => {
+            const inner = (
+              <>
+                <div>
+                  <div className={styles.drillMain}>{r.main}</div>
+                  {r.sub && <div className={styles.drillSub}>{r.sub}</div>}
+                </div>
+                <div className={styles.drillRight}>
+                  {r.tag && <span className={styles.drillTag}>{r.tag}</span>}
+                  {r.side && <span className={styles.drillSide}>{r.side}</span>}
+                </div>
+              </>
+            );
+            // בלי טלפון אין למה לקשר, ושורה שנראית לחיצה ולא עושה כלום גרועה
+            // משורה שלא נראית לחיצה בכלל. תשלומים למשל מגיעים בלי טלפון.
+            return r.href ? (
+              <Link key={i} href={r.href} className={`${styles.drillRow} ${styles.drillRowLink}`}>
+                {inner}
+              </Link>
+            ) : (
+              <div key={i} className={styles.drillRow}>{inner}</div>
+            );
+          })}
         </div>
       )}
     </>

@@ -199,6 +199,19 @@
   border-bottom: 1px solid var(--glass-border);
 }
 
+/* שורה שמקשרת לשיחה. נראית לחיצה כדי שלייה תדע שיש לאן ללחוץ. */
+.drillRowLink {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.drillRowLink:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .drillRow:last-child {
   border-bottom: none;
 }

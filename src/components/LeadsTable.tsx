@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import styles from './LeadsTable.module.css';
 import { Search, Filter, MoreHorizontal, MessageCircle } from 'lucide-react';
@@ -228,10 +229,19 @@ export default function LeadsTable() {
                     <span className={styles.sourceBadge}>{lead.source || 'לא ידוע'}</span>
                   </td>
                   <td>
-                    <a href={`https://wa.me/${lead.phone}`} target="_blank" rel="noopener noreferrer" className={styles.phoneLink}>
+                    {/* 25/08: היה כאן קישור ל-wa.me, שפותח את הוואטסאפ הפרטי של מי
+                        שלוחץ ולא את המספר העסקי — כלומר התשובה יוצאת מהמספר הלא
+                        נכון והשיחה לא נרשמת ביומן. עכשיו זה פותח את הצ'אט בתוך
+                        ה-CRM, שם השיחה מתועדת ולייה עונה מהמספר של בית הספר.
+                        stopPropagation כדי שהלחיצה לא תפתח גם את פרטי השורה. */}
+                    <Link
+                      href={`/conversations?phone=${String(lead.phone || '').replace(/\D/g, '')}`}
+                      className={styles.phoneLink}
+                      onClick={e => e.stopPropagation()}
+                    >
                       <MessageCircle size={14} />
                       {lead.phone}
-                    </a>
+                    </Link>
                   </td>
                   <td>
                     <span 

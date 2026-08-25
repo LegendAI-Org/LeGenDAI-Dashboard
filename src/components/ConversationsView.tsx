@@ -235,11 +235,21 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
       deepLinked.current = true;
       return;
     }
-    const match = conversations.find(c => c.phone === phone);
+    // התאמה לפי 9 הספרות האחרונות: הקישורים מגיעים משלושה מקומות שונים
+    // (התראת פוש, רשימת הלידים, הסיכום התקופתי), והטלפון נשמר שם פעם עם 972
+    // ופעם עם 0 מוביל. השוואה מדויקת הייתה נכשלת בשקט על חצי מהם.
+    const tail = phone.replace(/\D/g, '').slice(-9);
+    const match = conversations.find(c => c.phone.slice(-9) === tail);
+    deepLinked.current = true;
+    window.history.replaceState(null, '', '/conversations');
     if (match) {
-      deepLinked.current = true;
       setSelected(match);
-      window.history.replaceState(null, '', '/conversations');
+    } else {
+      // אין שיחה עם המספר הזה. בלי ההודעה הזאת הקישור פשוט לא היה עושה כלום,
+      // וזה נראה כמו תקלה במקום כמו "עוד לא דיברנו איתו".
+      setSearch(tail);
+      setView('all');
+      setError('עוד אין שיחה עם המספר הזה במספר החדש. אפשר לפתוח אותה בשליחת תבנית.');
     }
   }, [conversations]);
 
