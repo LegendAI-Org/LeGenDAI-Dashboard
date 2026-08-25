@@ -425,39 +425,42 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
         </button>
       )}
 
-      {!selected && (
-        <div className={styles.viewChips}>
-          <div className={styles.searchBox}>
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="חיפוש לפי שם או טלפון…"
-              className={styles.searchInput}
-              dir="rtl"
-            />
-            {search && (
-              <button type="button" className={styles.searchClear} onClick={() => setSearch('')} aria-label="ניקוי חיפוש">
-                ✕
-              </button>
-            )}
-          </div>
-          <button
-            type="button"
-            className={view === 'inbound' && !query ? styles.chipOn : styles.chip}
-            onClick={() => { setSearch(''); setView('inbound'); }}
-          >
-            כתבו לנו ({wrote.length})
-          </button>
-          <button
-            type="button"
-            className={view === 'all' && !query ? styles.chipOn : styles.chip}
-            onClick={() => { setSearch(''); setView('all'); }}
-          >
-            הכל ({conversations.length})
-          </button>
+      {/* 25/08: היה כאן {!selected && …}. זה נכון בנייד, שבו פתיחת שיחה מחליפה את
+          הרשימה במסך מלא, אבל במחשב שני הפאנלים פתוחים יחד — ולכן ברגע שלייה
+          לחצה על שיחה כלשהי, החיפוש והצ'יפים נעלמו לה מהמסך, בלי כפתור "חזרה"
+          (הוא מוסתר במחשב) ובלי שום דרך לחזור אליהם חוץ מרענון הדף. משם היא לא
+          יכלה להגיע לאף שיחת עבר. ההסתרה עברה ל-CSS, שם היא חלה רק על הנייד. */}
+      <div className={`${styles.viewChips} ${selected ? styles.chipsHidden : ''}`}>
+        <div className={styles.searchBox}>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="חיפוש לפי שם או טלפון…"
+            className={styles.searchInput}
+            dir="rtl"
+          />
+          {search && (
+            <button type="button" className={styles.searchClear} onClick={() => setSearch('')} aria-label="ניקוי חיפוש">
+              ✕
+            </button>
+          )}
         </div>
-      )}
+        <button
+          type="button"
+          className={view === 'inbound' && !query ? styles.chipOn : styles.chip}
+          onClick={() => { setSearch(''); setView('inbound'); }}
+        >
+          כתבו לנו ({wrote.length})
+        </button>
+        <button
+          type="button"
+          className={view === 'all' && !query ? styles.chipOn : styles.chip}
+          onClick={() => { setSearch(''); setView('all'); }}
+        >
+          הכל ({conversations.length})
+        </button>
+      </div>
 
       <div className={`${styles.layout} ${selected ? styles.threadOpen : ''}`}>
         <aside className={styles.list}>

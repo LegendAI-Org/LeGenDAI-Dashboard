@@ -579,6 +579,10 @@
   .list { height: 100%; }
   .thread { display: none; }
   .threadOpen .list { display: none; }
+  /* רק בנייד: פתיחת שיחה מחליפה את הרשימה במסך מלא, ולכן החיפוש והצ'יפים
+     שמעליה מיותרים. במחשב הרשימה נשארת פתוחה לצד השיחה — ושם הסתרתם היא
+     בדיוק מה שניתק את לייה משיחות העבר (25/08). */
+  .chipsHidden { display: none; }
   .threadOpen .thread { display: flex; height: 100%; }
   .backBtn { display: grid; }
 }
