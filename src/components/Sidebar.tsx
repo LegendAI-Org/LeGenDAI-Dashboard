@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Users, MessageSquare, MessagesSquare, CreditCard, PieChart, LogOut, CalendarRange, History } from 'lucide-react';
+import { Users, MessageSquare, MessagesSquare, CreditCard, PieChart, LogOut, CalendarRange, History, Phone } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import styles from './Sidebar.module.css';
 
@@ -32,6 +32,10 @@ export default function Sidebar() {
         <Link href="/conversations" className={`${styles.navItem} ${pathname === '/conversations' ? styles.active : ''}`}>
           <MessagesSquare size={20} />
           <span>שיחות וואטסאפ</span>
+        </Link>
+        <Link href="/call-list" className={`${styles.navItem} ${pathname === '/call-list' ? styles.active : ''}`}>
+          <Phone size={20} />
+          <span>לחייג</span>
         </Link>
         <Link href="/history" className={`${styles.navItem} ${pathname === '/history' ? styles.active : ''}`}>
           <History size={20} />

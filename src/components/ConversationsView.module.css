@@ -625,3 +625,11 @@
   background: color-mix(in srgb, var(--warning) 20%, transparent);
   color: var(--warning);
 }
+
+/* שיחה שכבר ברשימת החיוג. צבע ולא רק מסגרת, כדי שלייה תראה בסריקה מהירה
+   של הרשימה את מי היא כבר סימנה ולא תסמן אותו פעמיים. */
+.callOn {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.12);
+}

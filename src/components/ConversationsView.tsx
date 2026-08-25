@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
-import { MessageSquare, RefreshCw, Send, AlertTriangle, ChevronRight, Check, Undo2, FileText } from 'lucide-react';
+import { MessageSquare, RefreshCw, Send, AlertTriangle, ChevronRight, Check, Undo2, FileText, Phone } from 'lucide-react';
 import PushToggle from '@/components/PushToggle';
 import styles from './ConversationsView.module.css';
 
@@ -301,6 +301,41 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
   // Clears the red "waiting" flag without answering — some conversations genuinely need
   // no reply, and leaving them lit makes the whole list stop meaning anything. The CRM
   // stores a timestamp, so a newer message from the same person lights it up again.
+  // 25/08, בקשת איתי: לייה מסמנת במהלך היום את מי שצריך להתקשר אליו, ולמחרת
+  // מייצאת אקסל ומעבירה למי שמתקשר בפועל. הסימון נשמר בשרת ולא בדפדפן, כדי
+  // שגם נגה תראה את הרשימה ושהיא תשרוד רענון של הדף.
+  const [queued, setQueued] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    fetch('/api/whatsapp/call-queue', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => setQueued(new Set(((d.rows || []) as { phone: string }[]).map(r => r.phone))))
+      .catch(() => {});   // נכשל בשקט: הכפתור פשוט יופיע כלא-מסומן
+  }, []);
+
+  const toggleCall = async (conv: Conversation) => {
+    const on = queued.has(conv.phone);
+    setQueued(q => {
+      const next = new Set(q);
+      if (on) next.delete(conv.phone); else next.add(conv.phone);
+      return next;
+    });
+    try {
+      const res = await fetch('/api/whatsapp/call-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: conv.phone, name: conv.name || '', undo: on }),
+      });
+      if (!res.ok) throw new Error((await res.json())?.error || 'הפעולה נכשלה');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'הפעולה נכשלה');
+      setQueued(q => {                       // הסימון האופטימי היה שגוי
+        const next = new Set(q);
+        if (on) next.add(conv.phone); else next.delete(conv.phone);
+        return next;
+      });
+    }
+  };
+
   const dismiss = async (conv: Conversation, undo = false) => {
     setConversations(cs => cs.map(c =>
       c.phone === conv.phone ? { ...c, needs_reply: undo, dismissed: !undo } : c));
@@ -518,6 +553,16 @@ export default function ConversationsView({ channel = 'meta', readOnly = false, 
                   <span className={styles.badgeMuted}>סומן כטופל</span>
                 )}
               </button>
+              {!readOnly && (
+                <button
+                  className={`${styles.dismissBtn} ${queued.has(c.phone) ? styles.callOn : ''}`}
+                  onClick={() => toggleCall(c)}
+                  title={queued.has(c.phone) ? 'ברשימת החיוג — לחיצה מסירה' : 'הוספה לרשימת החיוג'}
+                  aria-label="רשימת חיוג"
+                >
+                  <Phone size={15} />
+                </button>
+              )}
               {!readOnly && (c.needs_reply ? (
                 <button
                   className={styles.dismissBtn}
