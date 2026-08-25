@@ -256,3 +256,34 @@
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* השורה מחולקת לשניים: הקישור לצ'אט, וכפתור ה-וי לצידו. הכפתור חייב לשבת
+   מחוץ לקישור, אחרת הקישור העוטף בולע את הלחיצה ומנווט במקום לסמן. */
+.drillRowWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.drillRowWrap:last-child { border-bottom: none; }
+.drillRowWrap .drillRow { border-bottom: none; }
+.drillRowGrow { flex: 1; min-width: 0; }
+
+.markBtn {
+  width: 32px; height: 32px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--glass-border);
+  background: transparent; color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.markBtn:hover { color: var(--accent-primary); border-color: var(--accent-primary); }
+
+/* מסומן = צבע מלא, כדי שלייה תראה בסריקה מהירה את מי היא כבר סימנה. */
+.markOn {
+  color: #fff;
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}

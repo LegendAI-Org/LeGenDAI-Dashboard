@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Users, DollarSign, UserCheck, Calendar, ChevronDown } from 'lucide-react';
+import { Users, DollarSign, UserCheck, Calendar, ChevronDown, Check } from 'lucide-react';
 import styles from '../app/(dashboard)/summary/page.module.css';
 
 export type LeadRow = { name: string; phone: string; status: string; date: string };
@@ -33,6 +33,46 @@ export default function SummaryCards({
   payersList: PayerRow[];
 }) {
   const [open, setOpen] = useState<CardKey | null>(null);
+
+  // 25/08, בקשת איתי: לייה מסמנת אנשים להתקשר אליהם גם מכאן ולא רק מעמוד
+  // השיחות — היא עוברת על הסיכום היומי ומסמנת תוך כדי. אותה רשימה בדיוק,
+  // ולכן סימון כאן מופיע שם ולהפך.
+  const [queued, setQueued] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    fetch('/api/whatsapp/call-queue', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => setQueued(new Set(((d.rows || []) as { phone: string }[]).map(r => r.phone))))
+      .catch(() => {});   // נכשל בשקט: הכפתורים פשוט יופיעו כלא-מסומנים
+  }, []);
+
+  const toggleCall = async (phone: string, name: string) => {
+    const d = (phone || '').replace(/\D/g, '');
+    const intl = d.startsWith('972') ? d : `972${d.replace(/^0/, '')}`;
+    const on = queued.has(intl);
+    setQueued(q => {
+      const next = new Set(q);
+      if (on) next.delete(intl); else next.add(intl);
+      return next;
+    });
+    try {
+      const res = await fetch('/api/whatsapp/call-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: intl, name, undo: on }),
+      });
+      if (!res.ok) throw new Error('failed');
+    } catch {
+      setQueued(q => {                       // הסימון האופטימי היה שגוי
+        const next = new Set(q);
+        if (on) next.add(intl); else next.delete(intl);
+        return next;
+      });
+    }
+  };
+  const isQueued = (phone: string) => {
+    const d = (phone || '').replace(/\D/g, '');
+    return queued.has(d.startsWith('972') ? d : `972${d.replace(/^0/, '')}`);
+  };
 
   const toggle = (key: CardKey) => setOpen(prev => (prev === key ? null : key));
   const fmtDate = (d: string) => (d ? d.slice(0, 10).split('-').reverse().join('/') : '');
@@ -123,6 +163,8 @@ export default function SummaryCards({
         <div className={`glass-card ${styles.drillPanel}`}>
           {open === 'leads' && (
             <DrillList
+              onToggleCall={toggleCall}
+              isQueued={isQueued}
               title="לידים חדשים בתקופה"
               rows={leadsList.map(l => ({ main: l.name || 'ללא שם', sub: l.phone, tag: l.status, side: fmtDate(l.date), href: chatHref(l.phone) }))}
               empty="אין לידים בתקופה שנבחרה"
@@ -137,6 +179,8 @@ export default function SummaryCards({
           )}
           {open === 'meetings' && (
             <DrillList
+              onToggleCall={toggleCall}
+              isQueued={isQueued}
               title="פגישות שנקבעו"
               rows={meetingsList.map(m => ({ main: m.name || 'ללא שם', sub: m.phone, tag: '', side: fmtDate(m.date), href: chatHref(m.phone) }))}
               empty="אין פגישות בתקופה שנבחרה"
@@ -152,10 +196,14 @@ function DrillList({
   title,
   rows,
   empty,
+  onToggleCall,
+  isQueued,
 }: {
   title: string;
   rows: { main: string; sub: string; tag: string; side: string; href?: string }[];
   empty: string;
+  onToggleCall?: (phone: string, name: string) => void;
+  isQueued?: (phone: string) => boolean;
 }) {
   return (
     <>
@@ -182,12 +230,31 @@ function DrillList({
             );
             // בלי טלפון אין למה לקשר, ושורה שנראית לחיצה ולא עושה כלום גרועה
             // משורה שלא נראית לחיצה בכלל. תשלומים למשל מגיעים בלי טלפון.
-            return r.href ? (
-              <Link key={i} href={r.href} className={`${styles.drillRow} ${styles.drillRowLink}`}>
-                {inner}
-              </Link>
-            ) : (
-              <div key={i} className={styles.drillRow}>{inner}</div>
+            // כפתור ה-וי יושב *מחוץ* לקישור ולא בתוכו: קישור עוטף בולע את
+            // הלחיצה ומנווט לצ'אט במקום לסמן, וזה בדיוק סוג הבאג שמתגלה רק
+            // אצל המשתמש. לכן השורה מחולקת לשניים.
+            const mark = onToggleCall && r.sub ? (
+              <button
+                type="button"
+                className={`${styles.markBtn} ${isQueued?.(r.sub) ? styles.markOn : ''}`}
+                onClick={() => onToggleCall(r.sub, r.main)}
+                title={isQueued?.(r.sub) ? 'ברשימת החיוג — לחיצה מסירה' : 'הוספה לרשימת החיוג'}
+                aria-label="רשימת חיוג"
+              >
+                <Check size={15} />
+              </button>
+            ) : null;
+            return (
+              <div key={i} className={styles.drillRowWrap}>
+                {r.href ? (
+                  <Link href={r.href} className={`${styles.drillRow} ${styles.drillRowLink} ${styles.drillRowGrow}`}>
+                    {inner}
+                  </Link>
+                ) : (
+                  <div className={`${styles.drillRow} ${styles.drillRowGrow}`}>{inner}</div>
+                )}
+                {mark}
+              </div>
             );
           })}
         </div>
