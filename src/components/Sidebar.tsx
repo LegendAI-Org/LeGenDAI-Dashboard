@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Users, MessageSquare, MessagesSquare, CreditCard, PieChart, LogOut, CalendarRange, History, Phone } from 'lucide-react';
+import { Users, MessageSquare, MessagesSquare, CreditCard, PieChart, LogOut, CalendarRange, Phone } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import styles from './Sidebar.module.css';
 
@@ -37,10 +37,13 @@ export default function Sidebar() {
           <Phone size={20} />
           <span>לחייג</span>
         </Link>
-        <Link href="/history" className={`${styles.navItem} ${pathname === '/history' ? styles.active : ''}`}>
-          <History size={20} />
-          <span>המספר הישן</span>
-        </Link>
+        {/* 03/09: "המספר הישן" הוסר מהתפריט בבקשת איתי. הערוץ הישן (GreenAPI)
+            כבר לא מתעדכן מאז 10/08 והעמוד לא היה בשימוש, אבל הוא בלבל את
+            לייה שחיפשה שם שיחות פעילות.
+            ⚠️ הנתונים לא נמחקו. 4,771 הודעות מ-594 אנשים, מאי עד אוגוסט,
+            עדיין ב-Supabase (2.4MB, בלי עלות). המסלול /history עצמו נשאר
+            חי — מי שיודע את הכתובת עדיין מגיע. הסרנו רק את הקישור.
+            להחזרה: לבטל את ההערה. */}
         <Link href="/summary" className={`${styles.navItem} ${pathname === '/summary' ? styles.active : ''}`}>
           <CalendarRange size={20} />
           <span>סיכום תקופתי</span>
